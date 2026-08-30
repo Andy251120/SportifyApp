@@ -1,0 +1,35 @@
+# Env / secrets
+.env
+
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+migrate_working_dir/
+
+# Generated / machine-specific
+*.iml
+android/local.properties
+android/.gradle/
+android/.kotlin/
+android/key.properties
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/ephemeral/
+**/Flutter/App.framework/
+**/Flutter/flutter_assets/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# macOS
+.DS_Store
+
+# Coverage
+coverage/

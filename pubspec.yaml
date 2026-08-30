@@ -1,0 +1,49 @@
+name: sport_super_app
+description: "App cộng đồng Tennis & Pickleball - Bản Beta Đà Nẵng"
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Backend
+  supabase_flutter: ^2.5.6
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Routing
+  go_router: ^14.2.0
+
+  # Env config
+  flutter_dotenv: ^5.1.0
+
+  # Charts (radar chart Show-off, biểu đồ tiến bộ điểm trình)
+  fl_chart: ^0.68.0
+
+  # Maps (Phase 5 - danh sách sân)
+  google_maps_flutter: ^2.7.0
+
+  # Images
+  image_picker: ^1.1.2
+  cached_network_image: ^3.3.1
+
+  # Utils
+  intl: ^0.19.0
+  google_fonts: ^6.2.1
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
