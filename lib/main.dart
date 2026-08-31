@@ -22,7 +22,7 @@ class SportSuperApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: 'Sân Chơi', // TODO: đổi tên app thật khi chốt branding
+      title: 'Rally',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: router,
