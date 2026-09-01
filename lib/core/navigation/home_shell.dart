@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../features/auth/application/auth_provider.dart';
+import '../../features/profile/application/profile_provider.dart';
+import '../../features/profile/presentation/profile_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/friendly_empty_state.dart';
 import '../widgets/primary_button.dart';
+import '../widgets/splash_screen.dart';
 
 /// Khung chính sau đăng nhập: 5 chỗ ở thanh dưới —
 /// Trang chủ · Ghép kèo · (nút giữa nổi bật) · Sân · Hồ sơ.
@@ -58,10 +60,16 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Widget build(BuildContext context) {
     final tab = _tabs[_index];
 
+    // Chờ hồ sơ tải xong trước khi hiện shell (router đã lo phần onboarding).
+    final profileAsync = ref.watch(myProfileProvider);
+    if (profileAsync.isLoading && !profileAsync.hasValue) {
+      return const SplashScreen();
+    }
+
     return Scaffold(
       appBar: AppBar(title: Text(tab.label), centerTitle: true),
       body: _index == 3
-          ? const _ProfilePlaceholder()
+          ? const ProfileScreen()
           : FriendlyEmptyState(emoji: tab.emoji, title: tab.label, message: tab.blurb),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton.large(
@@ -130,24 +138,3 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-class _ProfilePlaceholder extends ConsumerWidget {
-  const _ProfilePlaceholder();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
-
-    return FriendlyEmptyState(
-      emoji: '🙂',
-      title: 'Hồ sơ',
-      message: user?.phone != null
-          ? 'Bạn đang đăng nhập bằng số ${user!.phone}.\nHồ sơ đầy đủ sẽ có ở Phase 1.'
-          : 'Điểm trình, radar Show-off, thành tích của bạn sẽ ở đây.',
-      action: OutlinedButton.icon(
-        onPressed: () => ref.read(authRepositoryProvider).signOut(),
-        icon: const Icon(Icons.logout),
-        label: const Text('Đăng xuất'),
-      ),
-    );
-  }
-}

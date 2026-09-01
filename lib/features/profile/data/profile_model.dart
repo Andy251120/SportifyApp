@@ -1,0 +1,225 @@
+/// Môn thể thao. Map 1-1 với enum `sport_type` trong SCHEMA.md (`tennis` | `pickleball`).
+enum SportType {
+  tennis,
+  pickleball;
+
+  static SportType fromDb(String value) => SportType.values.firstWhere(
+        (s) => s.name == value,
+        orElse: () => SportType.tennis,
+      );
+
+  String get dbValue => name;
+
+  String get label => switch (this) {
+        SportType.tennis => 'Tennis',
+        SportType.pickleball => 'Pickleball',
+      };
+}
+
+/// 6 trục kỹ năng cá nhân hoá cho radar "Show-off". Thang 0–10.
+/// Map với cột jsonb `sport_stats.skill_matrix` — client tự sửa được.
+class SkillMatrix {
+  const SkillMatrix({
+    required this.spin,
+    required this.power,
+    required this.speed,
+    required this.mental,
+    required this.stamina,
+    required this.technique,
+  });
+
+  final double spin;
+  final double power;
+  final double speed;
+  final double mental;
+  final double stamina;
+  final double technique;
+
+  static const double maxValue = 10;
+
+  const SkillMatrix.zero()
+      : spin = 0,
+        power = 0,
+        speed = 0,
+        mental = 0,
+        stamina = 0,
+        technique = 0;
+
+  const SkillMatrix.filled(double v)
+      : spin = v,
+        power = v,
+        speed = v,
+        mental = v,
+        stamina = v,
+        technique = v;
+
+  factory SkillMatrix.fromJson(Map<String, dynamic> json) {
+    double read(String key) {
+      final raw = json[key];
+      if (raw is num) return raw.toDouble().clamp(0, maxValue);
+      return 0;
+    }
+
+    return SkillMatrix(
+      spin: read('spin'),
+      power: read('power'),
+      speed: read('speed'),
+      mental: read('mental'),
+      stamina: read('stamina'),
+      technique: read('technique'),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'spin': spin,
+        'power': power,
+        'speed': speed,
+        'mental': mental,
+        'stamina': stamina,
+        'technique': technique,
+      };
+
+  /// Dùng để dựng radar chart + slider tự chấm. Thứ tự cố định.
+  List<SkillAxis> get axes => [
+        SkillAxis('spin', 'Xoáy', spin),
+        SkillAxis('power', 'Sức mạnh', power),
+        SkillAxis('speed', 'Tốc độ', speed),
+        SkillAxis('mental', 'Tâm lý', mental),
+        SkillAxis('stamina', 'Thể lực', stamina),
+        SkillAxis('technique', 'Kỹ thuật', technique),
+      ];
+
+  SkillMatrix withAxis(String key, double value) {
+    final v = value.clamp(0, maxValue).toDouble();
+    return SkillMatrix(
+      spin: key == 'spin' ? v : spin,
+      power: key == 'power' ? v : power,
+      speed: key == 'speed' ? v : speed,
+      mental: key == 'mental' ? v : mental,
+      stamina: key == 'stamina' ? v : stamina,
+      technique: key == 'technique' ? v : technique,
+    );
+  }
+
+  double get overall {
+    final total = spin + power + speed + mental + stamina + technique;
+    return (total / 6 * 10).roundToDouble() / 10;
+  }
+}
+
+class SkillAxis {
+  const SkillAxis(this.key, this.label, this.value);
+  final String key;
+  final String label;
+  final double value;
+}
+
+/// Map với row `sport_stats`.
+class SportStats {
+  const SportStats({
+    required this.id,
+    required this.profileId,
+    required this.sport,
+    required this.rating,
+    required this.skillMatrix,
+    required this.titles,
+    required this.matchesPlayed,
+  });
+
+  final String id;
+  final String profileId;
+  final SportType sport;
+
+  /// Điểm Elo — chỉ service_role sửa được. 0 khi chưa có trận nào (Phase 2).
+  final double rating;
+  final SkillMatrix skillMatrix;
+  final List<String> titles;
+  final int matchesPlayed;
+
+  bool get hasRating => rating > 0 && matchesPlayed > 0;
+
+  factory SportStats.fromJson(Map<String, dynamic> json) {
+    final matrix = json['skill_matrix'];
+    return SportStats(
+      id: json['id'] as String,
+      profileId: json['profile_id'] as String,
+      sport: SportType.fromDb(json['sport'] as String),
+      rating: (json['rating'] as num?)?.toDouble() ?? 0,
+      skillMatrix: matrix is Map<String, dynamic>
+          ? SkillMatrix.fromJson(matrix)
+          : const SkillMatrix.zero(),
+      titles: (json['titles'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      matchesPlayed: (json['matches_played'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// Map với row `profiles` + danh sách `sport_stats` kèm theo (nested select).
+class Profile {
+  const Profile({
+    required this.id,
+    this.fullName,
+    this.avatarUrl,
+    this.coverUrl,
+    this.locationDistrict,
+    this.trustScore = 100,
+    this.currentMode = SportType.tennis,
+    this.isVerified = false,
+    this.updatedAt,
+    this.stats = const [],
+  });
+
+  final String id;
+  final String? fullName;
+  final String? avatarUrl;
+  final String? coverUrl;
+  final String? locationDistrict;
+  final int trustScore;
+  final SportType currentMode;
+  final bool isVerified;
+  final DateTime? updatedAt;
+  final List<SportStats> stats;
+
+  /// User cần onboard nếu chưa có tên hoặc chưa mở môn nào.
+  bool get needsOnboarding =>
+      (fullName == null || fullName!.trim().isEmpty) || stats.isEmpty;
+
+  SportStats? statsFor(SportType sport) {
+    for (final s in stats) {
+      if (s.sport == sport) return s;
+    }
+    return null;
+  }
+
+  List<SportType> get playedSports =>
+      stats.map((s) => s.sport).toSet().toList();
+
+  String get displayInitial {
+    final name = fullName?.trim() ?? '';
+    if (name.isEmpty) return '🎾';
+    return name.substring(0, 1).toUpperCase();
+  }
+
+  factory Profile.fromJson(Map<String, dynamic> json) {
+    final rawStats = json['sport_stats'];
+    return Profile(
+      id: json['id'] as String,
+      fullName: json['full_name'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      coverUrl: json['cover_url'] as String?,
+      locationDistrict: json['location_district'] as String?,
+      trustScore: (json['trust_score'] as num?)?.toInt() ?? 100,
+      currentMode: SportType.fromDb((json['current_mode'] as String?) ?? 'tennis'),
+      isVerified: (json['is_verified'] as bool?) ?? false,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at'] as String)
+          : null,
+      stats: rawStats is List
+          ? rawStats
+              .whereType<Map<String, dynamic>>()
+              .map(SportStats.fromJson)
+              .toList()
+          : const [],
+    );
+  }
+}
