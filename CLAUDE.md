@@ -1,6 +1,6 @@
 # CLAUDE.md — Context cho Claude Code
 
-Đây là project **app cộng đồng Tennis & Pickleball**, bản Beta cho Đà Nẵng. Đọc file này trước khi code bất cứ gì. Xem thêm `SCHEMA.md` để biết chi tiết cấu trúc database.
+Đây là project **app cộng đồng Tennis & Pickleball**, bản Beta cho Đà Nẵng. Đọc file này trước khi code bất cứ gì. Xem thêm `SCHEMA.md` để biết chi tiết cấu trúc database, và `UI_SPEC.md` để biết đặc tả UI chi tiết cho từng màn hình đã được duyệt (bắt đầu từ Phase 1) — implement đúng theo `UI_SPEC.md`, không tự đoán layout khi file đã mô tả rõ.
 
 ## Tổng quan sản phẩm
 
@@ -69,7 +69,16 @@ Mỗi feature folder có cấu trúc con: `data/` (model + repository gọi Supa
 
 **Nguyên tắc:** làm xong 1 Phase, dừng lại để review/test trước khi sang Phase tiếp theo — không code dồn nhiều Phase cùng lúc.
 
+## Testing & CI (bắt buộc từ Phase 0 trở đi)
+
+- **Mỗi Phase phải kèm test**, không chỉ code tính năng. Viết `flutter test` (widget test) cho phần UI/logic vừa làm trong Phase đó, đặt trong `test/`, đặt tên rõ theo tính năng (ví dụ `test/auth/login_screen_test.dart`), không dồn hết vào 1 file `widget_test.dart`.
+- Trước khi báo "xong Phase X", luôn tự chạy `flutter analyze` và `flutter test` tại chỗ — nếu có lỗi/test đỏ, sửa trước khi báo xong, không báo xong rồi để lỗi lại cho người dùng tự phát hiện.
+- **CI tự động (GitHub Actions, file `.github/workflows/ci.yml` đã có sẵn):** mỗi lần push code lên GitHub sẽ tự chạy `flutter analyze` → `flutter test` → `flutter build apk --debug`. Nếu bước nào đỏ, PR/commit đó coi như chưa đạt.
+- CI cần 2 GitHub Secrets để tạo `.env` lúc build: `SUPABASE_URL` và `SUPABASE_ANON_KEY` (giá trị y hệt trong `.env` local — người dùng tự thêm ở GitHub repo Settings → Secrets, Claude Code không tự thêm được).
+- **Phạm vi hiện tại (bản gọn):** chỉ có unit/widget test + build check. **Chưa có** E2E test trên emulator thật (integration_test/Maestro), chưa có test cho Supabase RLS/trigger (pgTAP), chưa có bước phân phối build cho tester (Firebase App Distribution/Codemagic) — những phần này sẽ bổ sung dần ở các Phase sau, đừng tự ý dựng thêm khi chưa được yêu cầu.
+
 ## Việc CHƯA làm được ở Phase 0 (cần người dùng tự cấu hình trên Supabase Dashboard)
 
 - Bật Auth provider số điện thoại (OTP) trong Supabase Dashboard — Claude Code không tự làm được qua code, cần người dùng bật thủ công trước khi luồng đăng nhập chạy được thật.
 - Storage buckets (avatars, post-images...) chưa tạo — nếu Phase 0 cần test upload avatar, nhắc người dùng tạo bucket trước, hoặc bỏ qua bước đó ở Phase 0 và làm ở Phase 1.
+- Push GitHub Secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) — cần người dùng tự thêm trên GitHub, Claude Code không có quyền truy cập Settings của repo.

@@ -16,7 +16,7 @@ enum SportType {
       };
 }
 
-/// 6 trục kỹ năng cá nhân hoá cho radar "Show-off". Thang 0–10.
+/// 6 trục kỹ năng cá nhân hoá cho radar "Show-off". Thang 0–100 (số nguyên).
 /// Map với cột jsonb `sport_stats.skill_matrix` — client tự sửa được.
 class SkillMatrix {
   const SkillMatrix({
@@ -35,7 +35,7 @@ class SkillMatrix {
   final double stamina;
   final double technique;
 
-  static const double maxValue = 10;
+  static const double maxValue = 100;
 
   const SkillMatrix.zero()
       : spin = 0,
@@ -71,20 +71,20 @@ class SkillMatrix {
   }
 
   Map<String, dynamic> toJson() => {
-        'spin': spin,
-        'power': power,
-        'speed': speed,
-        'mental': mental,
-        'stamina': stamina,
-        'technique': technique,
+        'spin': spin.round(),
+        'power': power.round(),
+        'speed': speed.round(),
+        'mental': mental.round(),
+        'stamina': stamina.round(),
+        'technique': technique.round(),
       };
 
-  /// Dùng để dựng radar chart + slider tự chấm. Thứ tự cố định.
+  /// Dùng để dựng radar chart + slider tự chấm. Thứ tự + nhãn theo UI_SPEC.md.
   List<SkillAxis> get axes => [
-        SkillAxis('spin', 'Xoáy', spin),
-        SkillAxis('power', 'Sức mạnh', power),
+        SkillAxis('spin', 'Xoáy bóng', spin),
+        SkillAxis('power', 'Lực đánh', power),
         SkillAxis('speed', 'Tốc độ', speed),
-        SkillAxis('mental', 'Tâm lý', mental),
+        SkillAxis('mental', 'Tinh thần', mental),
         SkillAxis('stamina', 'Thể lực', stamina),
         SkillAxis('technique', 'Kỹ thuật', technique),
       ];
@@ -101,9 +101,10 @@ class SkillMatrix {
     );
   }
 
-  double get overall {
+  /// Điểm trung bình 6 trục (0–100), làm tròn.
+  int get overall {
     final total = spin + power + speed + mental + stamina + technique;
-    return (total / 6 * 10).roundToDouble() / 10;
+    return (total / 6).round();
   }
 }
 
@@ -194,10 +195,11 @@ class Profile {
   List<SportType> get playedSports =>
       stats.map((s) => s.sport).toSet().toList();
 
-  String get displayInitial {
+  /// 2 ký tự đầu của tên cho avatar fallback (UI_SPEC).
+  String get initials {
     final name = fullName?.trim() ?? '';
     if (name.isEmpty) return '🎾';
-    return name.substring(0, 1).toUpperCase();
+    return name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
   }
 
   factory Profile.fromJson(Map<String, dynamic> json) {

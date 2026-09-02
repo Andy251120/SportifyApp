@@ -17,44 +17,65 @@ void main() {
     });
   });
 
-  group('SkillMatrix', () {
-    test('toJson/fromJson round-trip', () {
+  group('SkillMatrix (thang 0–100)', () {
+    test('maxValue là 100', () {
+      expect(SkillMatrix.maxValue, 100);
+    });
+
+    test('toJson/fromJson round-trip, toJson ghi số nguyên', () {
       const m = SkillMatrix(
-        spin: 7,
-        power: 5,
-        speed: 8,
-        mental: 4,
-        stamina: 6,
-        technique: 9,
+        spin: 72,
+        power: 58,
+        speed: 80,
+        mental: 41,
+        stamina: 64,
+        technique: 95,
       );
-      final back = SkillMatrix.fromJson(m.toJson());
-      expect(back.spin, 7);
-      expect(back.power, 5);
-      expect(back.speed, 8);
-      expect(back.mental, 4);
-      expect(back.stamina, 6);
-      expect(back.technique, 9);
+      final json = m.toJson();
+      expect(json['spin'], 72);
+      expect(json['spin'], isA<int>());
+      final back = SkillMatrix.fromJson(json);
+      expect(back.speed, 80);
+      expect(back.technique, 95);
     });
 
     test('fromJson clamps out-of-range and handles missing keys', () {
-      final m = SkillMatrix.fromJson({'spin': 42, 'power': -3});
-      expect(m.spin, 10);
+      final m = SkillMatrix.fromJson({'spin': 420, 'power': -3});
+      expect(m.spin, 100);
       expect(m.power, 0);
       expect(m.speed, 0); // missing -> 0
     });
 
     test('withAxis updates only the target axis', () {
-      const base = SkillMatrix.filled(5);
-      final updated = base.withAxis('speed', 9);
-      expect(updated.speed, 9);
-      expect(updated.spin, 5);
-      expect(updated.technique, 5);
+      const base = SkillMatrix.filled(50);
+      final updated = base.withAxis('speed', 90);
+      expect(updated.speed, 90);
+      expect(updated.spin, 50);
+      expect(updated.technique, 50);
     });
 
-    test('axes has 6 entries in fixed order', () {
+    test('withAxis clamps to 0..100', () {
+      const base = SkillMatrix.filled(50);
+      expect(base.withAxis('spin', 200).spin, 100);
+      expect(base.withAxis('spin', -5).spin, 0);
+    });
+
+    test('axes: 6 trục đúng thứ tự + nhãn UI_SPEC', () {
       final axes = const SkillMatrix.zero().axes;
       expect(axes.map((a) => a.key).toList(),
           ['spin', 'power', 'speed', 'mental', 'stamina', 'technique']);
+      expect(axes.map((a) => a.label).toList(),
+          ['Xoáy bóng', 'Lực đánh', 'Tốc độ', 'Tinh thần', 'Thể lực', 'Kỹ thuật']);
+    });
+
+    test('overall là trung bình làm tròn', () {
+      expect(const SkillMatrix.filled(50).overall, 50);
+      expect(
+        const SkillMatrix(
+                spin: 60, power: 60, speed: 60, mental: 60, stamina: 60, technique: 63)
+            .overall,
+        61,
+      );
     });
   });
 
@@ -102,7 +123,7 @@ void main() {
             'profile_id': 'u1',
             'sport': 'pickleball',
             'rating': 0,
-            'skill_matrix': {'spin': 3, 'power': 4},
+            'skill_matrix': {'spin': 30, 'power': 45},
             'titles': [],
             'matches_played': 0,
           }
@@ -111,7 +132,7 @@ void main() {
       expect(p.fullName, 'Mạnh');
       expect(p.currentMode, SportType.pickleball);
       expect(p.stats, hasLength(1));
-      expect(p.statsFor(SportType.pickleball)!.skillMatrix.power, 4);
+      expect(p.statsFor(SportType.pickleball)!.skillMatrix.power, 45);
       expect(p.statsFor(SportType.tennis), isNull);
       expect(p.needsOnboarding, isFalse);
     });

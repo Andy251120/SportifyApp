@@ -50,9 +50,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _next() {
     FocusScope.of(context).unfocus();
     if (_page < _lastPage) {
-      // Đảm bảo mỗi môn có 1 SkillMatrix (mặc định 5).
+      // Đảm bảo mỗi môn có 1 SkillMatrix (mặc định 50/100).
       for (final s in _sports) {
-        _ratings.putIfAbsent(s, () => const SkillMatrix.filled(5));
+        _ratings.putIfAbsent(s, () => const SkillMatrix.filled(50));
       }
       _pageCtrl.nextPage(
         duration: const Duration(milliseconds: 280),
@@ -81,7 +81,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             sports: sports,
             ratings: {
               for (final s in sports)
-                s: _ratings[s] ?? const SkillMatrix.filled(5),
+                s: _ratings[s] ?? const SkillMatrix.filled(50),
             },
           );
       // Router tự chuyển sang '/' khi myProfileProvider hết needsOnboarding.
@@ -439,7 +439,7 @@ class _RatingStep extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   SkillRatingEditor(
-                    value: ratings[sport] ?? const SkillMatrix.filled(5),
+                    value: ratings[sport] ?? const SkillMatrix.filled(50),
                     color: AppTheme.sportColor(sport.dbValue),
                     onChanged: (m) => onChanged(sport, m),
                   ),

@@ -24,9 +24,13 @@ class SkillRatingEditor extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (showPreview)
-          Center(child: ShowOffRadarChart(matrix: value, color: color, size: 220)),
-        const SizedBox(height: 8),
+        if (showPreview) ...[
+          SizedBox(
+            height: 220,
+            child: ShowOffRadarChart(matrix: value, color: color),
+          ),
+          const SizedBox(height: 8),
+        ],
         for (final axis in value.axes)
           _SliderRow(
             label: axis.label,
@@ -59,7 +63,7 @@ class _SliderRow extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 76,
+            width: 84,
             child: Text(label,
                 style: const TextStyle(fontWeight: FontWeight.w600)),
           ),
@@ -73,14 +77,14 @@ class _SliderRow extends StatelessWidget {
               child: Slider(
                 value: value.clamp(0, SkillMatrix.maxValue),
                 max: SkillMatrix.maxValue,
-                divisions: SkillMatrix.maxValue.toInt(),
+                divisions: 20, // bước nhảy 5
                 label: value.toStringAsFixed(0),
                 onChanged: onChanged,
               ),
             ),
           ),
           SizedBox(
-            width: 26,
+            width: 30,
             child: Text(
               value.toStringAsFixed(0),
               textAlign: TextAlign.end,

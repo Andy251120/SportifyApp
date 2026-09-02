@@ -255,10 +255,15 @@ class _PhoneForm extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         PrimaryButton(
-          label: 'Gửi mã cho tôi',
-          icon: Icons.sms_outlined,
+          label: 'Nhận mã OTP',
           loading: submitting,
           onPressed: onSend,
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Chưa có tài khoản? Đăng nhập lần đầu sẽ tự tạo hồ sơ cho bạn.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12.5, color: Colors.black54),
         ),
       ],
     );

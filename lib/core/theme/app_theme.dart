@@ -11,6 +11,14 @@ class AppTheme {
   static const Color tennisBallOrange = Color(0xFFFF7A00);
   static const Color pickleballBlue = Color(0xFF0288D1);
 
+  // Token trung tính (theo UI_SPEC.md).
+  static const Color scaffoldBg = Color(0xFFFAFAF7);
+  static const Color textPrimary = Color(0xFF1C1C1A);
+  static const Color textSecondary = Color(0xFF6B6A63);
+  static const Color textMuted = Color(0xFF9C9A8F);
+  static const Color surfaceMuted = Color(0xFFEFEDE4); // nền tab switcher
+  static const Color borderSubtle = Color(0xFFE3E1D6); // lưới, viền nhạt
+
   static const double cardRadius = 20;
   static const double buttonRadius = 16;
 
@@ -55,12 +63,17 @@ class AppTheme {
           borderSide: BorderSide.none,
         ),
       ),
-      scaffoldBackgroundColor: const Color(0xFFFAFAF7),
+      scaffoldBackgroundColor: scaffoldBg,
     );
   }
 
-  /// Màu riêng theo môn, dùng để phân biệt tab Tennis/Pickleball ngay bằng mắt.
+  /// Màu riêng theo môn cho tab switcher (tennis = xanh sân, pickleball = xanh dương).
   static Color sportColor(String sport) {
     return sport == 'pickleball' ? pickleballBlue : courtGreen;
+  }
+
+  /// Màu radar chart Show-off (tennis = cam bóng, pickleball = xanh dương) — theo UI_SPEC.
+  static Color radarColor(String sport) {
+    return sport == 'pickleball' ? pickleballBlue : tennisBallOrange;
   }
 }

@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/profile_model.dart';
 
-/// Chuyển tab Tennis / Pickleball — 2 pill bo tròn, pill active tô màu theo môn.
+/// Chuyển tab Tennis / Pickleball (UI_SPEC mục 2).
+/// Nền [AppTheme.surfaceMuted] bo 16, 2 phần bằng nhau; tab chọn tô
+/// [AppTheme.sportColor] chữ trắng, tab không chọn trong suốt chữ xám.
 class SportTabSwitcher extends StatelessWidget {
   const SportTabSwitcher({
     super.key,
@@ -19,8 +21,8 @@ class SportTabSwitcher extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(999),
+        color: AppTheme.surfaceMuted,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
@@ -51,40 +53,27 @@ class _Segment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = AppTheme.sportColor(sport.dbValue);
-    final icon = sport == SportType.tennis
-        ? Icons.sports_tennis
-        : Icons.sports_handball;
-
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
+      duration: const Duration(milliseconds: 160),
       curve: Curves.easeOut,
       decoration: BoxDecoration(
-        color: selected ? color : Colors.transparent,
-        borderRadius: BorderRadius.circular(999),
+        color: selected ? AppTheme.sportColor(sport.dbValue) : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(12),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon,
-                    size: 20,
-                    color: selected ? Colors.white : Colors.black45),
-                const SizedBox(width: 8),
-                Text(
-                  sport.label,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: selected ? Colors.white : Colors.black54,
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Text(
+              sport.label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: selected ? Colors.white : AppTheme.textSecondary,
+              ),
             ),
           ),
         ),

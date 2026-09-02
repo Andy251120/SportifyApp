@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/auth/application/auth_provider.dart';
 import '../../features/profile/application/profile_provider.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../theme/app_theme.dart';
@@ -56,6 +57,36 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     );
   }
 
+  Widget _buildProfileMenu() {
+    final profile = ref.watch(myProfileProvider).valueOrNull;
+    final sport = ref.watch(viewedSportProvider);
+    final stats = profile?.statsFor(sport);
+
+    return PopupMenuButton<String>(
+      onSelected: (v) {
+        switch (v) {
+          case 'basics':
+            showEditBasicsSheet(context, ref);
+          case 'skill':
+            if (stats != null) {
+              showEditSkillSheet(context, ref, sport, stats.skillMatrix);
+            }
+          case 'signout':
+            ref.read(authRepositoryProvider).signOut();
+        }
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(value: 'basics', child: Text('Sửa tên / khu vực')),
+        if (stats != null)
+          PopupMenuItem(
+              value: 'skill',
+              child: Text('Sửa điểm trình ${sport.label}')),
+        const PopupMenuDivider(),
+        const PopupMenuItem(value: 'signout', child: Text('Đăng xuất')),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tab = _tabs[_index];
@@ -67,7 +98,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(tab.label), centerTitle: true),
+      appBar: AppBar(
+        title: Text(tab.label),
+        centerTitle: true,
+        actions: _index == 3 ? [_buildProfileMenu()] : null,
+      ),
       body: _index == 3
           ? const ProfileScreen()
           : FriendlyEmptyState(emoji: tab.emoji, title: tab.label, message: tab.blurb),

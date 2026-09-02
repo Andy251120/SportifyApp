@@ -2,28 +2,36 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
     branches: [main]
 
 jobs:
-  analyze-and-test:
+  analyze_test_build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.47.1
-          channel: stable
+          channel: 'stable'
           cache: true
 
-      # App khai báo .env là asset trong pubspec; CI không có file thật nên tạo placeholder.
-      - name: Create placeholder .env
+      - name: Create .env from secrets
         run: |
-          echo "SUPABASE_URL=https://example.supabase.co" > .env
-          echo "SUPABASE_ANON_KEY=placeholder" >> .env
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
 
-      - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build debug APK (verify it compiles)
+        run: flutter build apk --debug

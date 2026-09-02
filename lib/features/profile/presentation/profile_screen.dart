@@ -6,14 +6,13 @@ import '../../../core/constants/da_nang.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/friendly_empty_state.dart';
 import '../../../core/widgets/primary_button.dart';
-import '../../../core/widgets/rounded_card.dart';
-import '../../auth/application/auth_provider.dart';
 import '../application/profile_provider.dart';
 import '../data/profile_model.dart';
 import 'show_off_radar_chart.dart';
 import 'skill_rating_editor.dart';
 import 'sport_tab_switcher.dart';
 
+/// Màn Hồ sơ chính — implement theo UI_SPEC.md.
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -23,30 +22,18 @@ class ProfileScreen extends ConsumerWidget {
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, __) => _ErrorState(
-        onRetry: () => ref.read(myProfileProvider.notifier).refresh(),
+      error: (_, __) => FriendlyEmptyState(
+        emoji: '📡',
+        title: 'Mạng đang chập chờn',
+        message: 'Không tải được hồ sơ. Thử lại nhé!',
+        action: PrimaryButton(
+          label: 'Thử lại',
+          onPressed: () => ref.read(myProfileProvider.notifier).refresh(),
+        ),
       ),
-      data: (profile) {
-        if (profile == null) {
-          return const Center(child: Text('Chưa có hồ sơ.'));
-        }
-        return _ProfileBody(profile: profile);
-      },
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.onRetry});
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return FriendlyEmptyState(
-      emoji: '📡',
-      title: 'Mạng đang chậpp chờn',
-      message: 'Không tải được hồ sơ. Thử lại nhé!',
-      action: PrimaryButton(label: 'Thử lại', onPressed: onRetry),
+      data: (profile) => profile == null
+          ? const Center(child: Text('Chưa có hồ sơ.'))
+          : _ProfileBody(profile: profile),
     );
   }
 }
@@ -59,31 +46,33 @@ class _ProfileBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sport = ref.watch(viewedSportProvider);
     final stats = profile.statsFor(sport);
-    final sportColor = AppTheme.sportColor(sport.dbValue);
 
     return RefreshIndicator(
       onRefresh: () => ref.read(myProfileProvider.notifier).refresh(),
       child: ListView(
-        // Chừa chỗ cho FAB + bottom bar của HomeShell.
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 40),
         children: [
           _Header(profile: profile),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           SportTabSwitcher(
             value: sport,
             onChanged: (s) => ref.read(viewedSportProvider.notifier).set(s),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           if (stats == null)
-            _SportNotOpened(sport: sport)
-          else
-            _SportSection(stats: stats, color: sportColor),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: () => ref.read(authRepositoryProvider).signOut(),
-            icon: const Icon(Icons.logout),
-            label: const Text('Đăng xuất'),
-          ),
+            _EmptySportState(sport: sport)
+          else ...[
+            _RatingBlock(stats: stats, isVerified: profile.isVerified),
+            SizedBox(
+              height: 220,
+              child: ShowOffRadarChart(
+                matrix: stats.skillMatrix,
+                color: AppTheme.radarColor(sport.dbValue),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const _ShareProfileButton(),
+          ],
         ],
       ),
     );
@@ -131,94 +120,241 @@ class _HeaderState extends ConsumerState<_Header> {
   Widget build(BuildContext context) {
     final p = widget.profile;
 
-    return RoundedCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              CircleAvatar(
-                radius: 44,
-                backgroundColor: AppTheme.courtGreen.withValues(alpha: 0.15),
-                backgroundImage:
-                    p.avatarUrl != null ? NetworkImage(p.avatarUrl!) : null,
-                child: p.avatarUrl == null
-                    ? Text(p.displayInitial,
-                        style: const TextStyle(
-                            fontSize: 30, fontWeight: FontWeight.bold))
-                    : null,
-              ),
-              Positioned(
-                right: -4,
-                bottom: -4,
-                child: Material(
-                  color: AppTheme.courtGreen,
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: _uploading ? null : _pickAvatar,
-                    child: Padding(
-                      padding: const EdgeInsets.all(7),
-                      child: _uploading
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Icon(Icons.camera_alt,
-                              size: 16, color: Colors.white),
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: _uploading ? null : _pickAvatar,
+          child: SizedBox(
+            width: 52,
+            height: 52,
+            child: _uploading
+                ? const Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : CircleAvatar(
+                    radius: 26,
+                    backgroundColor: AppTheme.tennisBallOrange,
+                    foregroundImage: p.avatarUrl != null
+                        ? NetworkImage(p.avatarUrl!)
+                        : null,
+                    child: Text(
+                      p.initials,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                p.fullName ?? 'Bạn chơi thể thao',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              Text(
+                p.locationDistrict ?? 'Chưa rõ khu vực',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textSecondary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Flexible(
-                child: Text(
-                  p.fullName ?? 'Bạn chơi thể thao',
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
-                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RatingBlock extends StatelessWidget {
+  const _RatingBlock({required this.stats, required this.isVerified});
+  final SportStats stats;
+  final bool isVerified;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              stats.rating.round().toString(),
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textPrimary,
               ),
-              if (p.isVerified) ...[
-                const SizedBox(width: 6),
-                const Icon(Icons.verified, color: AppTheme.courtGreen, size: 20),
-              ],
-            ],
-          ),
-          const SizedBox(height: 4),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            children: [
-              if (p.locationDistrict != null)
-                _Chip(icon: Icons.place_outlined, text: p.locationDistrict!),
-              _Chip(icon: Icons.shield_outlined, text: 'Uy tín ${p.trustScore}'),
-            ],
-          ),
-          const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed: () => _editBasics(context, ref, p),
-            icon: const Icon(Icons.edit, size: 16),
-            label: const Text('Sửa tên / quận'),
-          ),
-        ],
+            ),
+            const SizedBox(width: 6),
+            Text(
+              isVerified ? 'điểm trình' : 'điểm trình · chưa xác thực',
+              style: const TextStyle(fontSize: 13, color: AppTheme.textMuted),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${stats.matchesPlayed} trận đã đấu',
+          style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+}
+
+class _ShareProfileButton extends StatelessWidget {
+  const _ShareProfileButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          // TODO(Phase sau): xuất card hồ sơ dạng ảnh để chia sẻ (SRS 5.5).
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(const SnackBar(
+              content: Text('Tính năng chia sẻ hồ sơ sẽ có ở bản sau nha!'),
+            ));
+        },
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          side: const BorderSide(color: AppTheme.borderSubtle),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          foregroundColor: AppTheme.textPrimary,
+        ),
+        icon: const Icon(Icons.ios_share, size: 18),
+        label: const Text(
+          'Chia sẻ hồ sơ',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
       ),
     );
   }
 }
 
-Future<void> _editBasics(BuildContext context, WidgetRef ref, Profile p) async {
-  final nameCtrl = TextEditingController(text: p.fullName ?? '');
-  var district = p.locationDistrict;
+class _EmptySportState extends ConsumerWidget {
+  const _EmptySportState({required this.sport});
+  final SportType sport;
 
-  await showModalBottomSheet<void>(
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FriendlyEmptyState(
+      emoji: sport == SportType.tennis ? '🎾' : '🏓',
+      title: 'Chưa có điểm trình ${sport.label}',
+      message:
+          'Bạn chưa có điểm trình ${sport.label} — tự đánh giá ngay để bắt đầu leo hạng nhé!',
+      action: PrimaryButton(
+        label: 'Tự đánh giá ngay',
+        icon: Icons.auto_graph,
+        onPressed: () => showSelfRateSheet(context, ref, sport),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sheets — gọi được từ HomeShell (menu AppBar) và trong màn này.
+// ---------------------------------------------------------------------------
+
+/// Tự đánh giá điểm trình cho 1 môn chưa mở (dùng lại UI onboarding bước 3).
+Future<void> showSelfRateSheet(
+    BuildContext context, WidgetRef ref, SportType sport) {
+  return _skillSheet(
+    context,
+    title: 'Tự đánh giá điểm trình ${sport.label}',
+    initial: const SkillMatrix.filled(50),
+    color: AppTheme.radarColor(sport.dbValue),
+    onSave: (m) =>
+        ref.read(myProfileProvider.notifier).addSport(sport, m),
+  );
+}
+
+/// Chỉnh lại điểm Show-off của môn đã mở.
+Future<void> showEditSkillSheet(
+    BuildContext context, WidgetRef ref, SportType sport, SkillMatrix current) {
+  return _skillSheet(
+    context,
+    title: 'Chỉnh điểm Show-off ${sport.label}',
+    initial: current,
+    color: AppTheme.radarColor(sport.dbValue),
+    onSave: (m) =>
+        ref.read(myProfileProvider.notifier).updateSkillMatrix(sport, m),
+  );
+}
+
+Future<void> _skillSheet(
+  BuildContext context, {
+  required String title,
+  required SkillMatrix initial,
+  required Color color,
+  required Future<void> Function(SkillMatrix) onSave,
+}) {
+  var matrix = initial;
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (ctx) => Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      child: StatefulBuilder(
+        builder: (ctx, setSheet) => SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              SkillRatingEditor(
+                value: matrix,
+                color: color,
+                onChanged: (m) => setSheet(() => matrix = m),
+              ),
+              const SizedBox(height: 16),
+              PrimaryButton(
+                label: 'Lưu',
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  await onSave(matrix);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Sửa tên + khu vực (mở từ menu AppBar).
+Future<void> showEditBasicsSheet(BuildContext context, WidgetRef ref) {
+  final p = ref.read(myProfileProvider).valueOrNull;
+  final nameCtrl = TextEditingController(text: p?.fullName ?? '');
+  var district = p?.locationDistrict;
+
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
@@ -230,7 +366,7 @@ Future<void> _editBasics(BuildContext context, WidgetRef ref, Profile p) async {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Sửa thông tin',
+            const Text('Sửa tên / khu vực',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 14),
             TextField(
@@ -264,226 +400,6 @@ Future<void> _editBasics(BuildContext context, WidgetRef ref, Profile p) async {
               },
             ),
           ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip({required this.icon, required this.text});
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.black54),
-          const SizedBox(width: 4),
-          Text(text, style: const TextStyle(fontSize: 12)),
-        ],
-      ),
-    );
-  }
-}
-
-class _SportSection extends ConsumerWidget {
-  const _SportSection({required this.stats, required this.color});
-  final SportStats stats;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return RoundedCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Text('Show-off',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: () => _editSkill(context, ref, stats, color),
-                icon: const Icon(Icons.tune, size: 16),
-                label: const Text('Chỉnh điểm'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: ShowOffRadarChart(matrix: stats.skillMatrix, color: color),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _Stat(
-                  label: 'Điểm trình',
-                  value: stats.hasRating
-                      ? stats.rating.toStringAsFixed(0)
-                      : '—',
-                  hint: stats.hasRating ? null : 'chờ trận đầu tiên',
-                ),
-              ),
-              Expanded(
-                child: _Stat(
-                  label: 'Số trận',
-                  value: '${stats.matchesPlayed}',
-                ),
-              ),
-            ],
-          ),
-          if (stats.titles.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final t in stats.titles)
-                  Chip(label: Text(t), visualDensity: VisualDensity.compact),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, this.hint});
-  final String label;
-  final String value;
-  final String? hint;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value,
-            style:
-                const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: Colors.black54)),
-        if (hint != null)
-          Text(hint!,
-              style: const TextStyle(fontSize: 11, color: Colors.black38)),
-      ],
-    );
-  }
-}
-
-class _SportNotOpened extends ConsumerWidget {
-  const _SportNotOpened({required this.sport});
-  final SportType sport;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return RoundedCard(
-      padding: const EdgeInsets.all(20),
-      child: FriendlyEmptyState(
-        emoji: sport == SportType.tennis ? '🎾' : '🏓',
-        title: 'Chưa mở môn ${sport.label}',
-        message: 'Bạn có chơi ${sport.label} không? Mở ra để khoe điểm trình nè!',
-        action: PrimaryButton(
-          label: 'Mở môn ${sport.label}',
-          icon: Icons.add,
-          onPressed: () => _openSport(context, ref, sport),
-        ),
-      ),
-    );
-  }
-}
-
-Future<void> _openSport(
-    BuildContext context, WidgetRef ref, SportType sport) async {
-  var matrix = const SkillMatrix.filled(5);
-  final color = AppTheme.sportColor(sport.dbValue);
-
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (ctx) => Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-      child: StatefulBuilder(
-        builder: (ctx, setSheet) => SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Tự chấm điểm trình ${sport.label}',
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              SkillRatingEditor(
-                value: matrix,
-                color: color,
-                onChanged: (m) => setSheet(() => matrix = m),
-              ),
-              const SizedBox(height: 16),
-              PrimaryButton(
-                label: 'Mở môn ${sport.label}',
-                onPressed: () async {
-                  Navigator.of(ctx).pop();
-                  await ref
-                      .read(myProfileProvider.notifier)
-                      .addSport(sport, matrix);
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-Future<void> _editSkill(
-    BuildContext context, WidgetRef ref, SportStats stats, Color color) async {
-  var matrix = stats.skillMatrix;
-
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (ctx) => Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-      child: StatefulBuilder(
-        builder: (ctx, setSheet) => SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('Chỉnh điểm Show-off',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              SkillRatingEditor(
-                value: matrix,
-                color: color,
-                onChanged: (m) => setSheet(() => matrix = m),
-              ),
-              const SizedBox(height: 16),
-              PrimaryButton(
-                label: 'Lưu',
-                onPressed: () async {
-                  Navigator.of(ctx).pop();
-                  await ref
-                      .read(myProfileProvider.notifier)
-                      .updateSkillMatrix(stats.sport, matrix);
-                },
-              ),
-            ],
-          ),
         ),
       ),
     ),
