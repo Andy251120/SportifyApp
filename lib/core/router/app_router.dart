@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
+import '../../features/matches/presentation/confirm_result_screen.dart';
+import '../../features/matches/presentation/report_result_screen.dart';
 import '../../features/profile/application/profile_provider.dart';
 import '../navigation/home_shell.dart';
 import '../supabase/supabase_client.dart';
@@ -50,6 +52,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const OnboardingScreen(),
       ),
       GoRoute(path: '/', builder: (context, state) => const HomeShell()),
+      GoRoute(
+        path: '/matches/report',
+        builder: (context, state) => const ReportResultScreen(),
+      ),
+      GoRoute(
+        path: '/matches/confirm',
+        builder: (context, state) => const ConfirmResultScreen(),
+      ),
     ],
   );
 });

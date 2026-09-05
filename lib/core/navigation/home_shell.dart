@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_provider.dart';
 import '../../features/profile/application/profile_provider.dart';
@@ -33,24 +34,37 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (_) => Padding(
+      builder: (sheetContext) => Padding(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('🎾', style: TextStyle(fontSize: 48)),
+            const Text('🎾', style: TextStyle(fontSize: 48), textAlign: TextAlign.center),
             const SizedBox(height: 12),
             Text(
               'Tạo nhanh kèo & nhập kết quả',
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Nút này sẽ mở ra ở các bản sau nha. Giờ cứ làm quen với app đã!',
-              textAlign: TextAlign.center,
-            ),
             const SizedBox(height: 20),
-            PrimaryButton(label: 'Hiểu rồi!', onPressed: () => Navigator.of(context).pop()),
+            PrimaryButton(
+              label: 'Ghi kết quả trận đấu',
+              icon: Icons.sports_score,
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                context.push('/matches/report');
+              },
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                context.push('/matches/confirm');
+              },
+              icon: const Icon(Icons.list_alt),
+              label: const Text('Trận đấu của tôi'),
+            ),
           ],
         ),
       ),

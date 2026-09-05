@@ -25,12 +25,21 @@ RLS: SELECT cho mọi user đã đăng nhập. INSERT/UPDATE chỉ chính chủ 
 | id | uuid PK | |
 | profile_id | uuid FK → profiles | |
 | sport | sport_type | |
-| rating | float8, default 0 | **chỉ service_role sửa được (rating engine, chưa tồn tại)** |
-| skill_matrix | jsonb, default `{"spin":0,"power":0,"speed":0,"mental":0,"stamina":0,"technique":0}` | dữ liệu cho radar chart Show-off — client TỰ SỬA ĐƯỢC (đây là chỉ số cá nhân hóa, khác rating) |
+| rating | float8, default 0 | Elo. `0` = chưa có điểm; rating engine dùng baseline **1000** khi tính. **Client không sửa được** — chỉ rating engine (Phase 2). |
+| skill_matrix | jsonb, default `{"spin":0,"power":0,"speed":0,"mental":0,"stamina":0,"technique":0}` | dữ liệu cho radar chart Show-off, thang 0–100 — client TỰ SỬA ĐƯỢC (chỉ số cá nhân hóa, khác rating) |
 | titles | text[] | |
-| matches_played | int, default 0 | **chỉ service_role sửa được** |
+| matches_played | int, default 0 | **chỉ rating engine sửa được** |
 
-RLS: SELECT public (authenticated). INSERT/UPDATE chỉ chính chủ — nhưng cột `rating`/`matches_played` bị chặn ở tầng trigger dù có quyền UPDATE bảng.
+- UNIQUE `(profile_id, sport)` (thêm ở Phase 2).
+- RLS: SELECT public (authenticated). INSERT/UPDATE chỉ chính chủ — nhưng `rating`/`matches_played` bị trigger `enforce_sport_stats_update_rules` chặn trừ khi update lồng từ rating engine (`pg_trigger_depth() >= 2`) hoặc `service_role`.
+
+## Rating engine (Phase 2)
+
+Trigger `trg_apply_rating_on_confirm` (AFTER UPDATE `matches` WHEN `status` chuyển sang `confirmed`) → `apply_rating_on_match_confirmed()`:
+- Elo, baseline 1000 (khi `rating_before` null hoặc 0). K thích ứng: **32** cho 10 trận đầu của mỗi người/môn, sau đó **24**.
+- Đôi: kỳ vọng thắng tính theo điểm trung bình đội (avg `rating_before`), delta áp giống nhau cho 2 người cùng đội (K riêng từng người).
+- Cập nhật `sport_stats.rating` + `matches_played` (upsert theo `(profile_id, sport)`) và `match_participants.rating_after`.
+- Áp cho cả xác nhận thủ công lẫn auto-confirm (pg_cron). `disputed` KHÔNG đổi rating. Score không parse được / hoà set → bỏ qua (RAISE NOTICE).
 
 ## matches
 | Cột | Kiểu | Ghi chú |
