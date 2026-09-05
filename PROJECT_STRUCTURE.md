@@ -95,9 +95,6 @@ SportifyVN/
                 └── court_list_screen.dart
 ```
 
-## Quy ước đặt tên (Claude Code tuân theo xuyên suốt project)
+## Quy ước đặt tên & kiến trúc
 
-- File: `snake_case.dart`. Class: `PascalCase`. Provider: `camelCaseProvider` (ví dụ `authStateProvider`).
-- Mỗi `*_repository.dart` là lớp duy nhất được phép gọi `Supabase.instance.client` trực tiếp — `application/` và `presentation/` không bao giờ gọi thẳng Supabase, luôn đi qua repository.
-- Model dữ liệu (`*_model.dart`) map 1-1 với bảng trong `SCHEMA.md` — tên field trong model giữ nguyên tên cột (snake_case khi map JSON, có thể expose getter camelCase trong class).
-- Không tự ý thêm state management khác ngoài `flutter_riverpod` đã chọn trong `pubspec.yaml`.
+Xem `.claude/rules/architecture.md` (feature-first, 3 lớp, chỉ `*_repository.dart` gọi Supabase, đặt tên `snake_case.dart` / `PascalCase` / `camelCaseProvider`, model map 1-1 với `SCHEMA.md`).
