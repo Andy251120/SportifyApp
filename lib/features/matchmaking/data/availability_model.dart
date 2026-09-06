@@ -43,6 +43,10 @@ class AvailabilitySlot {
         end: _hhmm(json['end_time'] as String),
       );
 
-  /// DB trả `time` dạng `'HH:MM:SS'` → cắt còn `'HH:mm'`.
-  static String _hhmm(String raw) => raw.length >= 5 ? raw.substring(0, 5) : raw;
+  /// DB trả `time` dạng `'HH:MM:SS'` → cắt còn `'HH:mm'` (zero-pad từng phần).
+  static String _hhmm(String raw) {
+    final parts = raw.split(':');
+    if (parts.length < 2) return raw;
+    return '${parts[0].padLeft(2, '0')}:${parts[1].padLeft(2, '0')}';
+  }
 }

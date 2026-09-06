@@ -35,6 +35,29 @@ class MatchRequestRepository {
         .toList();
   }
 
+  /// Mọi kèo tôi đã bấm "xin vào" (mọi trạng thái response + mọi trạng thái kèo).
+  /// Query từ `match_request_responses` của tôi, embed request đầy đủ để
+  /// `req.myResponse(myId)` vẫn hoạt động qua nested `match_request_responses`.
+  Future<List<MatchRequest>> fetchRespondedRequests() async {
+    final uid = _uid;
+    if (uid == null) return [];
+    final rows = await _client
+        .from('match_request_responses')
+        .select('match_request:match_requests!match_request_id($_columns)')
+        .eq('responder_id', uid)
+        .order('created_at', ascending: false)
+        .limit(50);
+    final seen = <String>{};
+    final result = <MatchRequest>[];
+    for (final row in (rows as List).whereType<Map<String, dynamic>>()) {
+      final raw = row['match_request'];
+      if (raw is! Map<String, dynamic>) continue;
+      final req = MatchRequest.fromJson(raw);
+      if (seen.add(req.id)) result.add(req);
+    }
+    return result;
+  }
+
   /// Kèo do tôi tạo (mọi trạng thái trừ `cancelled`).
   Future<List<MatchRequest>> fetchMyRequests() async {
     final uid = _uid;

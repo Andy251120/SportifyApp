@@ -61,14 +61,21 @@ SportifyVN/
         │       ├── report_result_screen.dart     # nhập kết quả (dùng score_stepper)
         │       └── confirm_result_screen.dart    # xác nhận/từ chối, gán trọng tài/HLV
         │
-        ├── matchmaking/             # PHASE 3 — khung rỗng ở Phase 0
+        ├── matchmaking/             # PHASE 3
         │   ├── data/
-        │   │   └── match_request_repository.dart  # gọi RPC accept_match_request_response
+        │   │   ├── match_request_repository.dart  # gọi RPC accept_match_request_response, get_matched_contact
+        │   │   ├── match_request_model.dart
+        │   │   ├── availability_repository.dart
+        │   │   └── availability_model.dart
         │   ├── application/
-        │   │   └── match_request_provider.dart
+        │   │   ├── match_request_provider.dart
+        │   │   └── availability_provider.dart
         │   └── presentation/
         │       ├── match_request_list_screen.dart
-        │       └── create_match_request_screen.dart
+        │       ├── create_match_request_screen.dart
+        │       ├── match_request_detail_screen.dart
+        │       ├── availability_editor_screen.dart
+        │       └── matchmaking_ui.dart            # widget/helper dùng chung trong feature
         │
         ├── feed/                    # PHASE 4 — khung rỗng ở Phase 0
         │   ├── data/

@@ -6,6 +6,9 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
 import '../../features/matches/presentation/confirm_result_screen.dart';
 import '../../features/matches/presentation/report_result_screen.dart';
+import '../../features/matchmaking/presentation/availability_editor_screen.dart';
+import '../../features/matchmaking/presentation/create_match_request_screen.dart';
+import '../../features/matchmaking/presentation/match_request_detail_screen.dart';
 import '../../features/profile/application/profile_provider.dart';
 import '../navigation/home_shell.dart';
 import '../supabase/supabase_client.dart';
@@ -59,6 +62,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/matches/confirm',
         builder: (context, state) => const ConfirmResultScreen(),
+      ),
+      GoRoute(
+        path: '/matchmaking/create',
+        builder: (context, state) => const CreateMatchRequestScreen(),
+      ),
+      GoRoute(
+        path: '/matchmaking/:id',
+        builder: (context, state) => MatchRequestDetailScreen(
+          requestId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/availability',
+        builder: (context, state) => const AvailabilityEditorScreen(),
       ),
     ],
   );

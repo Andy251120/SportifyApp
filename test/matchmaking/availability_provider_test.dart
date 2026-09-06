@@ -142,5 +142,17 @@ void main() {
         completes,
       );
     });
+
+    test('deleteSlot throw → CÓ ném exception', () async {
+      final repo = _FakeAvailabilityRepo(throwOnAction: true);
+      final c = _container(repo);
+      await c.read(myAvailabilityProvider.future);
+
+      await expectLater(
+        c.read(myAvailabilityProvider.notifier).deleteSlot('slot7'),
+        throwsA(isA<Exception>()),
+      );
+      expect(repo.deleteCalls, 1);
+    });
   });
 }

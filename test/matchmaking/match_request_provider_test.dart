@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sport_super_app/features/auth/application/auth_provider.dart';
 import 'package:sport_super_app/features/matchmaking/application/match_request_provider.dart';
 import 'package:sport_super_app/features/matchmaking/data/match_request_model.dart';
@@ -18,15 +19,26 @@ class _FakeRequestRepo implements MatchRequestRepository {
   int withdrawCalls = 0;
   int cancelCalls = 0;
   int acceptCalls = 0;
+  int createCalls = 0;
   int fetchOpenCalls = 0;
   int fetchMineCalls = 0;
+  int fetchRespondedCalls = 0;
+  List<MatchRequest> respondedData = const [];
   String? lastAcceptId;
+  Map<String, dynamic>? lastCreateArgs;
 
   @override
   Future<List<MatchRequest>> fetchOpenRequests(String sport) async {
     fetchOpenCalls++;
     if (throwOnFetch) throw Exception('network down');
     return const [];
+  }
+
+  @override
+  Future<List<MatchRequest>> fetchRespondedRequests() async {
+    fetchRespondedCalls++;
+    if (throwOnFetch) throw Exception('network down');
+    return respondedData;
   }
 
   @override
@@ -45,8 +57,16 @@ class _FakeRequestRepo implements MatchRequestRepository {
     required String sport,
     DateTime? preferredDate,
     String? note,
-  }) async =>
-      'req1';
+  }) async {
+    createCalls++;
+    lastCreateArgs = {
+      'sport': sport,
+      'preferredDate': preferredDate,
+      'note': note,
+    };
+    if (throwOnAction) throw Exception('create failed');
+    return 'req1';
+  }
 
   @override
   Future<void> cancelRequest(String id) async {
@@ -87,12 +107,29 @@ class _FakeProfileNotifier extends MyProfileNotifier {
       Profile(id: 'me', fullName: 'Tôi', currentMode: _mode);
 }
 
+const _me = User(
+  id: 'me',
+  appMetadata: {},
+  userMetadata: {},
+  aud: 'authenticated',
+  createdAt: '2026-01-01T00:00:00Z',
+);
+
+MatchRequest _req(String id) => MatchRequest(
+      id: id,
+      sport: 'tennis',
+      creatorId: 'creator1',
+      status: MatchRequestStatus.open,
+      createdAt: DateTime(2026, 1, 1),
+    );
+
 ProviderContainer _container(
   _FakeRequestRepo repo, {
   SportType mode = SportType.tennis,
+  User? user,
 }) {
   final c = ProviderContainer(overrides: [
-    currentUserProvider.overrideWithValue(null),
+    currentUserProvider.overrideWithValue(user),
     matchRequestRepositoryProvider.overrideWithValue(repo),
     myProfileProvider.overrideWith(() => _FakeProfileNotifier(mode)),
   ]);
@@ -153,6 +190,18 @@ void main() {
       );
       expect(repo.withdrawCalls, 1);
     });
+
+    test('withdraw throw → CÓ ném exception', () async {
+      final repo = _FakeRequestRepo(throwOnAction: true);
+      final c = _container(repo);
+      await c.read(openRequestsProvider.future);
+
+      await expectLater(
+        c.read(openRequestsProvider.notifier).withdraw('resp1'),
+        throwsA(isA<Exception>()),
+      );
+      expect(repo.withdrawCalls, 1);
+    });
   });
 
   group('MyRequestsNotifier', () {
@@ -192,6 +241,197 @@ void main() {
         completes,
       );
       expect(repo.cancelCalls, 1);
+    });
+
+    test('cancel throw → CÓ ném exception', () async {
+      final repo = _FakeRequestRepo(throwOnAction: true);
+      final c = _container(repo);
+      await c.read(myRequestsProvider.future);
+
+      await expectLater(
+        c.read(myRequestsProvider.notifier).cancel('req1'),
+        throwsA(isA<Exception>()),
+      );
+      expect(repo.cancelCalls, 1);
+    });
+  });
+
+  group('RespondedRequestsNotifier', () {
+    test('build ra list từ repo khi có user', () async {
+      final repo = _FakeRequestRepo()..respondedData = [_req('r1'), _req('r2')];
+      final c = _container(repo, user: _me);
+
+      final list = await c.read(respondedRequestsProvider.future);
+      expect(list, hasLength(2));
+      expect(repo.fetchRespondedCalls, 1);
+    });
+
+    test('user null → [] và không gọi repo', () async {
+      final repo = _FakeRequestRepo()..respondedData = [_req('r1')];
+      final c = _container(repo);
+
+      final list = await c.read(respondedRequestsProvider.future);
+      expect(list, isEmpty);
+      expect(repo.fetchRespondedCalls, 0);
+    });
+
+    test('respond() → invalidate respondedRequestsProvider (refetch)', () async {
+      final repo = _FakeRequestRepo()..respondedData = [_req('r1')];
+      final c = _container(repo, user: _me);
+      await c.read(respondedRequestsProvider.future);
+      expect(repo.fetchRespondedCalls, 1);
+
+      await c.read(openRequestsProvider.notifier).respond('r1');
+      await c.read(respondedRequestsProvider.future);
+      expect(repo.fetchRespondedCalls, 2);
+    });
+
+    test('withdraw() → invalidate respondedRequestsProvider (refetch)', () async {
+      final repo = _FakeRequestRepo()..respondedData = [_req('r1')];
+      final c = _container(repo, user: _me);
+      await c.read(respondedRequestsProvider.future);
+
+      await c.read(openRequestsProvider.notifier).withdraw('resp1');
+      await c.read(respondedRequestsProvider.future);
+      expect(repo.fetchRespondedCalls, 2);
+    });
+
+    test('accept() → invalidate respondedRequestsProvider (refetch)', () async {
+      final repo = _FakeRequestRepo()..respondedData = [_req('r1')];
+      final c = _container(repo, user: _me);
+      await c.read(respondedRequestsProvider.future);
+
+      await c.read(myRequestsProvider.notifier).accept('resp9');
+      await c.read(respondedRequestsProvider.future);
+      expect(repo.fetchRespondedCalls, 2);
+    });
+  });
+
+  group('visibleRespondedRequests', () {
+    MatchRequest req(
+      String id, {
+      MatchRequestStatus status = MatchRequestStatus.open,
+      ResponseStatus? myStatus,
+    }) =>
+        MatchRequest(
+          id: id,
+          sport: 'tennis',
+          creatorId: 'creator1',
+          status: status,
+          createdAt: DateTime(2026, 1, 1),
+          responses: myStatus == null
+              ? const []
+              : [
+                  MatchRequestResponse(
+                    id: 'resp-$id',
+                    matchRequestId: id,
+                    responderId: 'me',
+                    status: myStatus,
+                    createdAt: DateTime(2026, 1, 1),
+                  ),
+                ],
+        );
+
+    test('pending + kèo open → bị loại (đã hiện ở "Kèo đang mở")', () {
+      final out = visibleRespondedRequests(
+        [req('r1', myStatus: ResponseStatus.pending)],
+        'me',
+      );
+      expect(out, isEmpty);
+    });
+
+    test('declined + kèo open (tôi tự rút) → bị loại', () {
+      final out = visibleRespondedRequests(
+        [req('r1', myStatus: ResponseStatus.declined)],
+        'me',
+      );
+      expect(out, isEmpty);
+    });
+
+    test('declined + kèo matched (chủ chọn người khác) → giữ', () {
+      final out = visibleRespondedRequests(
+        [
+          req('r1',
+              status: MatchRequestStatus.matched,
+              myStatus: ResponseStatus.declined),
+        ],
+        'me',
+      );
+      expect(out.map((r) => r.id), ['r1']);
+    });
+
+    test('accepted → luôn giữ dù kèo ở trạng thái nào', () {
+      final out = visibleRespondedRequests(
+        [
+          req('r1', myStatus: ResponseStatus.accepted),
+          req('r2',
+              status: MatchRequestStatus.matched,
+              myStatus: ResponseStatus.accepted),
+        ],
+        'me',
+      );
+      expect(out.map((r) => r.id), ['r1', 'r2']);
+    });
+
+    test('không có response của tôi → bị loại', () {
+      final out = visibleRespondedRequests([req('r1')], 'me');
+      expect(out, isEmpty);
+    });
+  });
+
+  group('CreateMatchRequestController', () {
+    test('seed sport theo matchmakingSportProvider', () async {
+      final c = _container(_FakeRequestRepo(), mode: SportType.pickleball);
+      await c.read(myProfileProvider.future);
+      expect(
+        c.read(createMatchRequestControllerProvider).sport,
+        'pickleball',
+      );
+    });
+
+    test('submit gọi createRequest với sport + note đã trim, trả true', () async {
+      final repo = _FakeRequestRepo();
+      final c = _container(repo);
+      await c.read(myProfileProvider.future);
+      final ctrl = c.read(createMatchRequestControllerProvider.notifier);
+
+      ctrl.setSport('pickleball');
+      ctrl.setNote('  tối nay ra sân nhé  ');
+      final date = DateTime(2026, 9, 20);
+      ctrl.setDate(date);
+
+      final ok = await ctrl.submit();
+      expect(ok, isTrue);
+      expect(repo.createCalls, 1);
+      expect(repo.lastCreateArgs, {
+        'sport': 'pickleball',
+        'preferredDate': date,
+        'note': 'tối nay ra sân nhé',
+      });
+    });
+
+    test('note rỗng → gửi null', () async {
+      final repo = _FakeRequestRepo();
+      final c = _container(repo);
+      await c.read(myProfileProvider.future);
+      final ctrl = c.read(createMatchRequestControllerProvider.notifier);
+
+      ctrl.setNote('   ');
+      final ok = await ctrl.submit();
+      expect(ok, isTrue);
+      expect(repo.lastCreateArgs!['note'], isNull);
+    });
+
+    test('createRequest ném → submit trả false + set error', () async {
+      final repo = _FakeRequestRepo(throwOnAction: true);
+      final c = _container(repo);
+      await c.read(myProfileProvider.future);
+      final ctrl = c.read(createMatchRequestControllerProvider.notifier);
+
+      final ok = await ctrl.submit();
+      expect(ok, isFalse);
+      expect(c.read(createMatchRequestControllerProvider).error, isNotNull);
+      expect(c.read(createMatchRequestControllerProvider).submitting, isFalse);
     });
   });
 }

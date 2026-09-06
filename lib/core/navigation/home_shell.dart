@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_provider.dart';
+import '../../features/matchmaking/presentation/match_request_list_screen.dart';
 import '../../features/profile/application/profile_provider.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../theme/app_theme.dart';
@@ -85,6 +86,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             if (stats != null) {
               showEditSkillSheet(context, ref, sport, stats.skillMatrix);
             }
+          case 'availability':
+            context.push('/availability');
           case 'signout':
             ref.read(authRepositoryProvider).signOut();
         }
@@ -95,6 +98,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           PopupMenuItem(
               value: 'skill',
               child: Text('Sửa điểm trình ${sport.label}')),
+        const PopupMenuItem(
+            value: 'availability', child: Text('Khung giờ rảnh')),
         const PopupMenuDivider(),
         const PopupMenuItem(value: 'signout', child: Text('Đăng xuất')),
       ],
@@ -117,9 +122,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         centerTitle: true,
         actions: _index == 3 ? [_buildProfileMenu()] : null,
       ),
-      body: _index == 3
-          ? const ProfileScreen()
-          : FriendlyEmptyState(emoji: tab.emoji, title: tab.label, message: tab.blurb),
+      body: _index == 1
+          ? const MatchRequestListScreen()
+          : _index == 3
+              ? const ProfileScreen()
+              : FriendlyEmptyState(
+                  emoji: tab.emoji, title: tab.label, message: tab.blurb),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton.large(
         onPressed: _openCenterAction,
