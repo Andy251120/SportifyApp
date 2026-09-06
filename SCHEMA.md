@@ -83,15 +83,25 @@ RLS SELECT/UPDATE `matches` + SELECT `match_participants`/`match_officials`: dù
 Người có mặt trong bảng này được confirm/dispute trận nhưng KHÔNG sửa được `score`.
 
 ## availability
-| profile_id, sport, day_of_week (0-6), start_time, end_time |
+| id, profile_id, sport, day_of_week (0-6), start_time (time), end_time (time) |
+- RLS: SELECT cho mọi user đăng nhập; INSERT/UPDATE/DELETE chỉ chính chủ (`profile_id = auth.uid()`).
+- Không có UNIQUE trên `(profile_id, sport, day_of_week)` — cho phép nhiều khung giờ/ngày. Client tự tránh trùng lặp nếu muốn.
 
 ## match_requests
-| id, sport, creator_id, status (`open`\|`matched`\|`cancelled`), preferred_date, min_rating, max_rating, district, note |
+| id, sport, creator_id, status (`open`\|`matched`\|`cancelled`), preferred_date (date, null), min_rating, max_rating, district, note, created_at |
+- RLS: SELECT cho mọi user đăng nhập; INSERT/UPDATE/DELETE chỉ creator (`creator_id = auth.uid()`).
+- Phase 3 (beta) KHÔNG dùng `min_rating`/`max_rating`/`district` — để trống. Lọc list chỉ theo `sport` + `status`.
 
 ## match_request_responses
-| id, match_request_id, responder_id, status (`pending`\|`accepted`\|`declined`) |
+| id, match_request_id, responder_id, status (`pending`\|`accepted`\|`declined`), created_at |
+- `UNIQUE (match_request_id, responder_id)` — mỗi người chỉ đăng ký 1 lần / kèo.
+- RLS: SELECT + UPDATE cho responder HOẶC creator của kèo; INSERT chỉ chính responder (`responder_id = auth.uid()`).
+- Trigger INSERT: chặn đăng ký kèo của chính mình + kèo phải `status='open'`.
+- Trigger UPDATE: chỉ creator được set `accepted`; chỉ responder/creator được set `declined`.
 
-**Accept dùng RPC `accept_match_request_response(p_response_id)`** — không tự update status='accepted' trực tiếp.
+**Accept dùng RPC `accept_match_request_response(p_response_id)`** — atomic: set response = `accepted`, decline mọi response `pending` khác cùng kèo, set `match_requests.status='matched'`. Chỉ creator gọi được. KHÔNG tạo `matches` (ghi kết quả trận vẫn qua luồng Phase 2).
+
+**Xem SĐT sau khi ghép: RPC `get_matched_contact(p_match_request_id uuid)`** → `table(profile_id, full_name, avatar_url, phone)` của **đối phương**. Chỉ trả khi kèo `status='matched'` VÀ caller là creator hoặc responder đã `accepted`. SECURITY DEFINER (đọc `auth.users.phone`), revoke `anon`, grant `authenticated`.
 
 ## posts / post_likes / post_comments
 - `posts`: id, author_id, content, image_urls (text[]), sport (nullable), club_id (nullable), match_id (nullable — để gắn kết quả trận vào bài đăng)
@@ -127,6 +137,9 @@ create_match(
 ) returns uuid   -- match_id
 
 accept_match_request_response(p_response_id uuid) returns uuid   -- match_request_id
+
+get_matched_contact(p_match_request_id uuid)
+  returns table(profile_id uuid, full_name text, avatar_url text, phone text)  -- đối phương, chỉ khi đã matched
 ```
 
 Cả 2 chỉ gọi được khi đã đăng nhập (`authenticated`), không gọi được ở trạng thái `anon`.
