@@ -203,6 +203,38 @@ class Profile {
     return name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
   }
 
+  /// Sao chép, đổi các field truyền vào. Field nullable dùng sentinel để cho
+  /// phép set về `null` tường minh (giống `LoginState.copyWith`).
+  Profile copyWith({
+    String? id,
+    Object? fullName = _sentinel,
+    Object? avatarUrl = _sentinel,
+    Object? coverUrl = _sentinel,
+    Object? locationDistrict = _sentinel,
+    int? trustScore,
+    SportType? currentMode,
+    bool? isVerified,
+    Object? updatedAt = _sentinel,
+    List<SportStats>? stats,
+  }) {
+    return Profile(
+      id: id ?? this.id,
+      fullName: identical(fullName, _sentinel) ? this.fullName : fullName as String?,
+      avatarUrl: identical(avatarUrl, _sentinel) ? this.avatarUrl : avatarUrl as String?,
+      coverUrl: identical(coverUrl, _sentinel) ? this.coverUrl : coverUrl as String?,
+      locationDistrict: identical(locationDistrict, _sentinel)
+          ? this.locationDistrict
+          : locationDistrict as String?,
+      trustScore: trustScore ?? this.trustScore,
+      currentMode: currentMode ?? this.currentMode,
+      isVerified: isVerified ?? this.isVerified,
+      updatedAt: identical(updatedAt, _sentinel) ? this.updatedAt : updatedAt as DateTime?,
+      stats: stats ?? this.stats,
+    );
+  }
+
+  static const _sentinel = Object();
+
   factory Profile.fromJson(Map<String, dynamic> json) {
     final rawStats = json['sport_stats'];
     return Profile(

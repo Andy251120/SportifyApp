@@ -108,6 +108,62 @@ void main() {
     });
   });
 
+  group('Profile.copyWith', () {
+    final base = Profile(
+      id: 'u1',
+      fullName: 'Mạnh',
+      avatarUrl: 'a.png',
+      coverUrl: 'c.png',
+      locationDistrict: 'Hải Châu',
+      trustScore: 80,
+      currentMode: SportType.tennis,
+      isVerified: true,
+      updatedAt: DateTime(2026, 1, 1),
+      stats: const [
+        SportStats(
+          id: 's1',
+          profileId: 'u1',
+          sport: SportType.tennis,
+          rating: 0,
+          skillMatrix: SkillMatrix.zero(),
+          titles: [],
+          matchesPlayed: 0,
+        ),
+      ],
+    );
+
+    test('không truyền gì → giữ nguyên mọi field', () {
+      final copy = base.copyWith();
+      expect(copy.id, base.id);
+      expect(copy.fullName, base.fullName);
+      expect(copy.avatarUrl, base.avatarUrl);
+      expect(copy.coverUrl, base.coverUrl);
+      expect(copy.locationDistrict, base.locationDistrict);
+      expect(copy.trustScore, base.trustScore);
+      expect(copy.currentMode, base.currentMode);
+      expect(copy.isVerified, base.isVerified);
+      expect(copy.updatedAt, base.updatedAt);
+      expect(copy.stats, base.stats);
+    });
+
+    test('đổi đúng field truyền vào, phần còn lại giữ nguyên', () {
+      final copy = base.copyWith(currentMode: SportType.pickleball);
+      expect(copy.currentMode, SportType.pickleball);
+      expect(copy.fullName, 'Mạnh');
+      expect(copy.trustScore, 80);
+      expect(copy.stats, base.stats);
+    });
+
+    test('set field nullable về null tường minh', () {
+      final copy = base.copyWith(avatarUrl: null, updatedAt: null);
+      expect(copy.avatarUrl, isNull);
+      expect(copy.updatedAt, isNull);
+      // field nullable không truyền vẫn giữ giá trị cũ
+      expect(copy.coverUrl, 'c.png');
+      expect(copy.fullName, 'Mạnh');
+    });
+  });
+
   group('Profile.fromJson', () {
     test('parses nested sport_stats', () {
       final p = Profile.fromJson({

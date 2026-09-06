@@ -31,18 +31,32 @@ class MyMatchesNotifier extends AsyncNotifier<List<MatchSummary>> {
     state = await AsyncValue.guard(_repo.fetchMyMatches);
   }
 
-  /// Xác nhận trận. Lỗi được ném lại cho màn hình hiện SnackBar — KHÔNG đẩy cả
-  /// danh sách sang trạng thái error (giữ nguyên list đang hiển thị).
+  /// Xác nhận trận. Chỉ lỗi của hành động thật (`confirmMatch`) mới ném lại cho
+  /// màn hình hiện SnackBar — KHÔNG đẩy cả danh sách sang trạng thái error (giữ
+  /// nguyên list đang hiển thị). Lỗi ở bước làm mới danh sách được nuốt: lần
+  /// `refresh()`/pull-to-refresh kế tiếp sẽ đồng bộ lại.
   Future<void> confirm(String matchId) async {
     await _repo.confirmMatch(matchId);
-    // Rating vừa được rating engine cập nhật — làm mới Hồ sơ luôn.
-    ref.invalidate(myProfileProvider);
-    state = AsyncData(await _repo.fetchMyMatches());
+    await _syncAfterAction(invalidateProfile: true);
   }
 
   Future<void> dispute(String matchId) async {
     await _repo.disputeMatch(matchId);
-    state = AsyncData(await _repo.fetchMyMatches());
+    await _syncAfterAction();
+  }
+
+  /// Làm mới danh sách sau khi hành động (confirm/dispute) đã thành công.
+  /// Nuốt mọi lỗi refetch để không báo thất bại sai cho user.
+  Future<void> _syncAfterAction({bool invalidateProfile = false}) async {
+    try {
+      if (invalidateProfile) {
+        // Rating vừa được rating engine cập nhật — làm mới Hồ sơ luôn.
+        ref.invalidate(myProfileProvider);
+      }
+      state = AsyncData(await _repo.fetchMyMatches());
+    } catch (e, st) {
+      debugPrint('fetchMyMatches after action failed: $e\n$st');
+    }
   }
 }
 

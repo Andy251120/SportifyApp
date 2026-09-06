@@ -73,7 +73,7 @@ class MyProfileNotifier extends AsyncNotifier<Profile?> {
   Future<void> setViewedSport(SportType sport) async {
     final current = state.valueOrNull;
     if (current != null && current.currentMode != sport) {
-      state = AsyncData(_copyWithMode(current, sport));
+      state = AsyncData(current.copyWith(currentMode: sport));
     }
     try {
       await _repo.setCurrentMode(sport);
@@ -81,19 +81,6 @@ class MyProfileNotifier extends AsyncNotifier<Profile?> {
       // Không critical — lần fetch sau sẽ đồng bộ lại.
     }
   }
-
-  Profile _copyWithMode(Profile p, SportType mode) => Profile(
-        id: p.id,
-        fullName: p.fullName,
-        avatarUrl: p.avatarUrl,
-        coverUrl: p.coverUrl,
-        locationDistrict: p.locationDistrict,
-        trustScore: p.trustScore,
-        currentMode: mode,
-        isVerified: p.isVerified,
-        updatedAt: p.updatedAt,
-        stats: p.stats,
-      );
 }
 
 /// Môn đang xem ở tab Hồ sơ. Seed từ `profiles.current_mode`.
