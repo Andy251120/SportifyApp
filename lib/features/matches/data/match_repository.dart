@@ -39,7 +39,8 @@ class MatchRepository {
     final rows = await _client
         .from('matches')
         .select(_matchColumns)
-        .order('reported_at', ascending: false);
+        .order('reported_at', ascending: false)
+        .limit(50);
     return (rows as List)
         .whereType<Map<String, dynamic>>()
         .map(MatchSummary.fromJson)

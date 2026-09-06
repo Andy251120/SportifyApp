@@ -131,7 +131,8 @@ class SportStats {
   final String profileId;
   final SportType sport;
 
-  /// Điểm Elo — chỉ service_role sửa được. 0 khi chưa có trận nào (Phase 2).
+  /// Điểm Elo — client KHÔNG sửa được (chỉ rating engine hoặc service_role).
+  /// `0` = chưa có điểm; rating engine coi `0` là baseline 1000 khi tính (Phase 2).
   final double rating;
   final SkillMatrix skillMatrix;
   final List<String> titles;

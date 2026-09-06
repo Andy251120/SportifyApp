@@ -243,7 +243,7 @@ class _ShareProfileButton extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           foregroundColor: AppTheme.textPrimary,
         ),
-        icon: const Icon(Icons.ios_share, size: 18),
+        icon: const Icon(Icons.share, size: 18),
         label: const Text(
           'Chia sẻ hồ sơ',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
@@ -310,50 +310,70 @@ Future<void> _skillSheet(
   required Color color,
   required Future<void> Function(SkillMatrix) onSave,
 }) {
-  var matrix = initial;
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder: (ctx) => Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-      child: StatefulBuilder(
-        builder: (ctx, setSheet) => SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              SkillRatingEditor(
-                value: matrix,
-                color: color,
-                onChanged: (m) => setSheet(() => matrix = m),
-              ),
-              const SizedBox(height: 16),
-              PrimaryButton(
-                label: 'Lưu',
-                onPressed: () async {
-                  Navigator.of(ctx).pop();
-                  await onSave(matrix);
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: _SkillSheet(
+          title: title, initial: initial, color: color, onSave: onSave),
     ),
   );
+}
+
+class _SkillSheet extends StatefulWidget {
+  const _SkillSheet({
+    required this.title,
+    required this.initial,
+    required this.color,
+    required this.onSave,
+  });
+
+  final String title;
+  final SkillMatrix initial;
+  final Color color;
+  final Future<void> Function(SkillMatrix) onSave;
+
+  @override
+  State<_SkillSheet> createState() => _SkillSheetState();
+}
+
+class _SkillSheetState extends State<_SkillSheet> {
+  late SkillMatrix _matrix = widget.initial;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          SkillRatingEditor(
+            value: _matrix,
+            color: widget.color,
+            onChanged: (m) => setState(() => _matrix = m),
+          ),
+          const SizedBox(height: 16),
+          PrimaryButton(
+            label: 'Lưu',
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await widget.onSave(_matrix);
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Sửa tên + khu vực (mở từ menu AppBar).
 Future<void> showEditBasicsSheet(BuildContext context, WidgetRef ref) {
   final p = ref.read(myProfileProvider).valueOrNull;
-  final nameCtrl = TextEditingController(text: p?.fullName ?? '');
-  var district = p?.locationDistrict;
-
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -361,47 +381,81 @@ Future<void> showEditBasicsSheet(BuildContext context, WidgetRef ref) {
     builder: (ctx) => Padding(
       padding: EdgeInsets.fromLTRB(
           20, 8, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
-      child: StatefulBuilder(
-        builder: (ctx, setSheet) => Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Sửa tên / khu vực',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 14),
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(hintText: 'Tên hoặc biệt danh'),
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final d in kDaNangDistricts)
-                  ChoiceChip(
-                    label: Text(d),
-                    selected: district == d,
-                    onSelected: (_) => setSheet(() => district = d),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            PrimaryButton(
-              label: 'Lưu',
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                await ref.read(myProfileProvider.notifier).updateBasics(
-                      fullName: nameCtrl.text.trim().isEmpty
-                          ? null
-                          : nameCtrl.text.trim(),
-                      district: district,
-                    );
-              },
-            ),
-          ],
-        ),
+      child: _EditBasicsSheet(
+        initialName: p?.fullName ?? '',
+        initialDistrict: p?.locationDistrict,
+        onSave: (name, district) =>
+            ref.read(myProfileProvider.notifier).updateBasics(
+                  fullName: name,
+                  district: district,
+                ),
       ),
     ),
   );
+}
+
+class _EditBasicsSheet extends StatefulWidget {
+  const _EditBasicsSheet({
+    required this.initialName,
+    required this.initialDistrict,
+    required this.onSave,
+  });
+
+  final String initialName;
+  final String? initialDistrict;
+  final Future<void> Function(String? name, String? district) onSave;
+
+  @override
+  State<_EditBasicsSheet> createState() => _EditBasicsSheetState();
+}
+
+class _EditBasicsSheetState extends State<_EditBasicsSheet> {
+  late final TextEditingController _nameCtrl =
+      TextEditingController(text: widget.initialName);
+  late String? _district = widget.initialDistrict;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text('Sửa tên / khu vực',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _nameCtrl,
+          decoration: const InputDecoration(hintText: 'Tên hoặc biệt danh'),
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final d in kDaNangDistricts)
+              ChoiceChip(
+                label: Text(d),
+                selected: _district == d,
+                onSelected: (_) => setState(() => _district = d),
+              ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        PrimaryButton(
+          label: 'Lưu',
+          onPressed: () async {
+            final name = _nameCtrl.text.trim();
+            Navigator.of(context).pop();
+            await widget.onSave(name.isEmpty ? null : name, _district);
+          },
+        ),
+      ],
+    );
+  }
 }

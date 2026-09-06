@@ -25,21 +25,22 @@ RLS: SELECT cho mọi user đã đăng nhập. INSERT/UPDATE chỉ chính chủ 
 | id | uuid PK | |
 | profile_id | uuid FK → profiles | |
 | sport | sport_type | |
-| rating | float8, default 0 | Elo. `0` = chưa có điểm; rating engine dùng baseline **1000** khi tính. **Client không sửa được** — chỉ rating engine (Phase 2). |
+| rating | float8, default 0 | Elo. `0` = chưa có điểm (sentinel); rating engine coi `null`/`0` là baseline **1000** khi tính. **Client không sửa được** — chỉ rating engine (Phase 2) hoặc `service_role`. |
 | skill_matrix | jsonb, default `{"spin":0,"power":0,"speed":0,"mental":0,"stamina":0,"technique":0}` | dữ liệu cho radar chart Show-off, thang 0–100 — client TỰ SỬA ĐƯỢC (chỉ số cá nhân hóa, khác rating) |
 | titles | text[] | |
 | matches_played | int, default 0 | **chỉ rating engine sửa được** |
 
-- UNIQUE `(profile_id, sport)` (thêm ở Phase 2).
+- UNIQUE `(profile_id, sport)` — constraint `sport_stats_profile_id_sport_key`.
 - RLS: SELECT public (authenticated). INSERT/UPDATE chỉ chính chủ — nhưng `rating`/`matches_played` bị trigger `enforce_sport_stats_update_rules` chặn trừ khi update lồng từ rating engine (`pg_trigger_depth() >= 2`) hoặc `service_role`.
 
 ## Rating engine (Phase 2)
 
 Trigger `trg_apply_rating_on_confirm` (AFTER UPDATE `matches` WHEN `status` chuyển sang `confirmed`) → `apply_rating_on_match_confirmed()`:
-- Elo, baseline 1000 (khi `rating_before` null hoặc 0). K thích ứng: **32** cho 10 trận đầu của mỗi người/môn, sau đó **24**.
-- Đôi: kỳ vọng thắng tính theo điểm trung bình đội (avg `rating_before`), delta áp giống nhau cho 2 người cùng đội (K riêng từng người).
-- Cập nhật `sport_stats.rating` + `matches_played` (upsert theo `(profile_id, sport)`) và `match_participants.rating_after`.
-- Áp cho cả xác nhận thủ công lẫn auto-confirm (pg_cron). `disputed` KHÔNG đổi rating. Score không parse được / hoà set → bỏ qua (RAISE NOTICE).
+- Elo. **Điểm gốc = `sport_stats.rating` HIỆN TẠI tại thời điểm xác nhận** (baseline 1000 khi `null`/`0`), KHÔNG dùng snapshot `match_participants.rating_before` lúc tạo trận — nhờ vậy nhiều trận `pending` của cùng một người cộng dồn đúng theo thứ tự được xác nhận. Phép cộng dồn nằm trong `ON CONFLICT DO UPDATE` (khoá row) → an toàn với xác nhận đồng thời.
+- K thích ứng: **32** cho 10 trận đầu của mỗi người/môn, sau đó **24**.
+- Đôi: kỳ vọng thắng tính theo điểm trung bình đội (avg điểm gốc), delta áp giống nhau cho 2 người cùng đội (K riêng từng người).
+- Cập nhật `sport_stats.rating` + `matches_played` (upsert theo `(profile_id, sport)`); ghi `match_participants.rating_before` = điểm gốc thật sự đã dùng + `rating_after` = điểm sau trận.
+- Áp cho cả xác nhận thủ công lẫn auto-confirm (pg_cron). `disputed` KHÔNG đổi rating. Score không parse được / phi số / hoà set → bỏ qua (RAISE NOTICE).
 
 ## matches
 | Cột | Kiểu | Ghi chú |
@@ -59,6 +60,8 @@ Trigger `trg_apply_rating_on_confirm` (AFTER UPDATE `matches` WHEN `status` chuy
 **KHÔNG insert trực tiếp — dùng RPC `create_match`.**
 Sửa `score`: chỉ `reported_by`, chỉ khi chưa `confirmed` (tự động reset về `pending_confirmation`). Đổi `status` → `confirmed`/`disputed`: không được là chính `reported_by`.
 
+RLS SELECT/UPDATE `matches` + SELECT `match_participants`/`match_officials`: dùng helper `private.uid_in_match_participants(match_id)` / `private.uid_in_match_officials(match_id)` (SECURITY DEFINER, bỏ qua RLS) để tránh đệ quy vô hạn giữa policy của `matches` ↔ `match_participants`. Ai xem được trận thì xem được **toàn bộ** participant/official của trận đó.
+
 ## match_participants
 | Cột | Kiểu | Ghi chú |
 |---|---|---|
@@ -66,8 +69,8 @@ Sửa `score`: chỉ `reported_by`, chỉ khi chưa `confirmed` (tự động re
 | match_id | uuid FK → matches | |
 | profile_id | uuid FK → profiles | |
 | side | text | `a` \| `b` |
-| rating_before | float8 | snapshot lúc tạo match |
-| rating_after | float8 | ghi bởi rating engine (chưa tồn tại) |
+| rating_before | float8 | `create_match` ghi tạm = `sport_stats.rating` lúc tạo trận; rating engine ghi đè = điểm gốc thật sự đã dùng khi trận `confirmed` |
+| rating_after | float8 | điểm sau trận, ghi bởi rating engine khi `confirmed` |
 
 ## match_officials
 | Cột | Kiểu | Ghi chú |

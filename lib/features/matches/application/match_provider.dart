@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/supabase/supabase_client.dart';
@@ -30,22 +31,18 @@ class MyMatchesNotifier extends AsyncNotifier<List<MatchSummary>> {
     state = await AsyncValue.guard(_repo.fetchMyMatches);
   }
 
+  /// Xác nhận trận. Lỗi được ném lại cho màn hình hiện SnackBar — KHÔNG đẩy cả
+  /// danh sách sang trạng thái error (giữ nguyên list đang hiển thị).
   Future<void> confirm(String matchId) async {
-    state = const AsyncLoading<List<MatchSummary>>().copyWithPrevious(state);
-    state = await AsyncValue.guard(() async {
-      await _repo.confirmMatch(matchId);
-      // Rating vừa được rating engine cập nhật — làm mới Hồ sơ luôn.
-      ref.invalidate(myProfileProvider);
-      return _repo.fetchMyMatches();
-    });
+    await _repo.confirmMatch(matchId);
+    // Rating vừa được rating engine cập nhật — làm mới Hồ sơ luôn.
+    ref.invalidate(myProfileProvider);
+    state = AsyncData(await _repo.fetchMyMatches());
   }
 
   Future<void> dispute(String matchId) async {
-    state = const AsyncLoading<List<MatchSummary>>().copyWithPrevious(state);
-    state = await AsyncValue.guard(() async {
-      await _repo.disputeMatch(matchId);
-      return _repo.fetchMyMatches();
-    });
+    await _repo.disputeMatch(matchId);
+    state = AsyncData(await _repo.fetchMyMatches());
   }
 }
 
@@ -71,11 +68,26 @@ class ReportMatchState {
 
   int get opponentsNeeded => matchType == MatchType.singles ? 1 : 2;
 
+  /// Có 1 bên thắng nhiều set hơn — chặn ghi trận không có kết quả rõ ràng
+  /// (vd mọi set 0-0, hoặc số set thắng bằng nhau).
+  bool get hasClearWinner {
+    var wa = 0, wb = 0;
+    for (final s in sets) {
+      if (s.a > s.b) {
+        wa++;
+      } else if (s.b > s.a) {
+        wb++;
+      }
+    }
+    return wa != wb;
+  }
+
   bool get canSubmit =>
       !submitting &&
       opponents.length == opponentsNeeded &&
       (matchType == MatchType.singles || partner != null) &&
-      sets.isNotEmpty;
+      sets.isNotEmpty &&
+      hasClearWinner;
 
   ReportMatchState copyWith({
     String? sport,
@@ -168,7 +180,8 @@ class ReportMatchController extends AutoDisposeNotifier<ReportMatchState> {
       state = state.copyWith(submitting: false);
       ref.invalidate(myMatchesProvider);
       return true;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('createMatch failed: $e\n$st');
       state = state.copyWith(
         submitting: false,
         error: 'Ghi kết quả chưa được, bạn thử lại chút nha!',

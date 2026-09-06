@@ -68,16 +68,30 @@ void main() {
     expect(c.read(reportMatchControllerProvider).sport, 'pickleball');
   });
 
-  test('canSubmit: đơn cần đúng 1 đối thủ + có set', () async {
+  test('canSubmit: đơn cần đúng 1 đối thủ + tỷ số có bên thắng', () async {
     final c = _container(_FakeMatchRepo());
     final ctrl = c.read(reportMatchControllerProvider.notifier);
 
     expect(c.read(reportMatchControllerProvider).canSubmit, isFalse);
     ctrl.addOpponent(_p1);
+    // vẫn chưa được: tỷ số 0-0 chưa có bên thắng
+    expect(c.read(reportMatchControllerProvider).canSubmit, isFalse);
+    ctrl.updateSet(0, a: 6, b: 3);
     expect(c.read(reportMatchControllerProvider).canSubmit, isTrue);
     // không thêm được đối thủ thứ 2 khi đánh đơn
     ctrl.addOpponent(_p2);
     expect(c.read(reportMatchControllerProvider).opponents, hasLength(1));
+  });
+
+  test('canSubmit: false khi số set thắng hai bên bằng nhau', () async {
+    final c = _container(_FakeMatchRepo());
+    final ctrl = c.read(reportMatchControllerProvider.notifier);
+    ctrl.addOpponent(_p1);
+    ctrl.updateSet(0, a: 6, b: 3);
+    ctrl.addSet();
+    ctrl.updateSet(1, a: 3, b: 6);
+    expect(c.read(reportMatchControllerProvider).hasClearWinner, isFalse);
+    expect(c.read(reportMatchControllerProvider).canSubmit, isFalse);
   });
 
   test('đổi sang đôi: reset đối thủ, cần đồng đội + 2 đối thủ', () async {
@@ -87,6 +101,7 @@ void main() {
     ctrl.setMatchType(MatchType.doubles);
     expect(c.read(reportMatchControllerProvider).opponents, isEmpty);
 
+    ctrl.updateSet(0, a: 11, b: 7);
     ctrl.addOpponent(_p1);
     ctrl.addOpponent(_p2);
     expect(c.read(reportMatchControllerProvider).canSubmit, isFalse); // thiếu đồng đội

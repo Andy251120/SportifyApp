@@ -103,8 +103,12 @@ final viewedSportProvider =
 class ViewedSportNotifier extends Notifier<SportType> {
   @override
   SportType build() {
-    final profile = ref.watch(myProfileProvider).valueOrNull;
-    return profile?.currentMode ?? SportType.tennis;
+    // Seed từ `current_mode` — chỉ rebuild khi chính giá trị này đổi (đổi user,
+    // hoặc user tự chọn tab), KHÔNG rebuild theo mọi mutation hồ sơ khác.
+    return ref.watch(
+      myProfileProvider
+          .select((a) => a.valueOrNull?.currentMode ?? SportType.tennis),
+    );
   }
 
   void set(SportType sport) {

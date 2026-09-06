@@ -21,6 +21,7 @@ class ConfirmResultScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Trận đấu của tôi')),
       body: async.when(
+        skipLoadingOnReload: true,
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => FriendlyEmptyState(
           emoji: '📡',
@@ -84,7 +85,7 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _MatchCard extends ConsumerWidget {
+class _MatchCard extends ConsumerStatefulWidget {
   const _MatchCard({required this.match, required this.myId, required this.actionable});
 
   final MatchSummary match;
@@ -92,7 +93,17 @@ class _MatchCard extends ConsumerWidget {
   final bool actionable;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MatchCard> createState() => _MatchCardState();
+}
+
+class _MatchCardState extends ConsumerState<_MatchCard> {
+  bool _busy = false;
+
+  MatchSummary get match => widget.match;
+  String get myId => widget.myId;
+
+  @override
+  Widget build(BuildContext context) {
     final mySide = match.me(myId)?.side;
     final opponents = match.participants.where((p) => p.side != mySide).toList();
     final opponentNames = opponents.isEmpty
@@ -101,8 +112,8 @@ class _MatchCard extends ConsumerWidget {
     final scoreText = match.score.map((s) => '${s.a}-${s.b}').join(', ');
     final myParticipant = match.me(myId);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
       child: RoundedCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,13 +137,13 @@ class _MatchCard extends ConsumerWidget {
               Text('Điểm trình mới: ${myParticipant!.ratingAfter!.round()}',
                   style: const TextStyle(fontSize: 12, color: AppTheme.textMuted)),
             ],
-            if (actionable) ...[
+            if (widget.actionable) ...[
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => _confirmDispute(context, ref, match.id),
+                      onPressed: _busy ? null : _dispute,
                       child: const Text('Từ chối'),
                     ),
                   ),
@@ -140,7 +151,8 @@ class _MatchCard extends ConsumerWidget {
                   Expanded(
                     child: PrimaryButton(
                       label: 'Xác nhận',
-                      onPressed: () => ref.read(myMatchesProvider.notifier).confirm(match.id),
+                      loading: _busy,
+                      onPressed: _busy ? null : _confirm,
                     ),
                   ),
                 ],
@@ -152,7 +164,27 @@ class _MatchCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmDispute(BuildContext context, WidgetRef ref, String matchId) async {
+  Future<void> _confirm() async {
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xác nhận kết quả này?'),
+        content: const Text('Điểm trình của cả hai bên sẽ được cập nhật ngay.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Thôi')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Xác nhận')),
+        ],
+      ),
+    );
+    if (sure != true) return;
+    await _run(
+      () => ref.read(myMatchesProvider.notifier).confirm(match.id),
+      ok: 'Đã xác nhận! Điểm trình vừa cập nhật.',
+      fail: 'Xác nhận chưa được, thử lại chút nha!',
+    );
+  }
+
+  Future<void> _dispute() async {
     final sure = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -164,9 +196,31 @@ class _MatchCard extends ConsumerWidget {
         ],
       ),
     );
-    if (sure == true) {
-      await ref.read(myMatchesProvider.notifier).dispute(matchId);
+    if (sure != true) return;
+    await _run(
+      () => ref.read(myMatchesProvider.notifier).dispute(match.id),
+      ok: 'Đã ghi nhận là bạn không đồng ý kết quả này.',
+      fail: 'Từ chối chưa được, thử lại chút nha!',
+    );
+  }
+
+  Future<void> _run(Future<void> Function() action,
+      {required String ok, required String fail}) async {
+    setState(() => _busy = true);
+    try {
+      await action();
+      if (mounted) _snack(ok);
+    } catch (_) {
+      if (mounted) _snack(fail);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
   }
 }
 

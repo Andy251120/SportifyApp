@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/profile_model.dart';
 import 'show_off_radar_chart.dart';
 
-/// 6 slider tự chấm (0–10) + radar preview cập nhật live.
+/// 6 slider tự chấm (0–100, bước 5) + radar preview cập nhật live.
 /// Dùng chung cho onboarding bước 3 và sheet "Chỉnh điểm" ở màn Hồ sơ.
 class SkillRatingEditor extends StatelessWidget {
   const SkillRatingEditor({
