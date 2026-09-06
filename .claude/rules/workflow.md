@@ -5,7 +5,7 @@
 0. **Setup** — project, Supabase, auth OTP số điện thoại, CI. ✅ xong
 1. **Hồ sơ & Show-off** — tab Tennis/Pickleball, tự đánh giá điểm trình (skill_matrix 0–100), radar chart, avatar. ✅ xong
 2. **Trận đấu & Rating engine** — ghi/xác nhận kết quả + Elo engine ở Supabase. ✅ code + migration xong
-3. **Ghép kèo** — `match_requests`, `availability`.
+3. **Ghép kèo** — `match_requests`, `availability`, RPC `get_matched_contact`. ✅ code + migration xong (chờ verify 2 tài khoản)
 4. **Feed cộng đồng** — posts, likes, comments (+ clubs).
 5. **Danh sách sân** — `google_maps_flutter`.
 6. **Push notification thật.**
