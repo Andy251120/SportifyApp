@@ -84,6 +84,7 @@ Người có mặt trong bảng này được confirm/dispute trận nhưng KHÔ
 
 ## availability
 | id, profile_id, sport, day_of_week (0-6), start_time (time), end_time (time) |
+- **Quy ước `day_of_week`: 0 = Thứ 2 … 6 = Chủ nhật** (client Rally tự quy ước, DB chỉ CHECK 0–6).
 - RLS: SELECT cho mọi user đăng nhập; INSERT/UPDATE/DELETE chỉ chính chủ (`profile_id = auth.uid()`).
 - Không có UNIQUE trên `(profile_id, sport, day_of_week)` — cho phép nhiều khung giờ/ngày. Client tự tránh trùng lặp nếu muốn.
 
