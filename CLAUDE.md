@@ -64,6 +64,7 @@ KHÔNG tự viết code trực tiếp — phải giao việc qua 2 subagent: `im
 - `severity`: `blocker` | `should-fix` | `suggestion`. `issues[]` liệt kê cả 3 mức.
 - Khi `pass: false` → truyền lại cho `implement` các issue `blocker` + `should-fix`
   (bỏ `suggestion`). Khi `pass: true` → báo user, kèm `should-fix`/`suggestion` còn tồn.
-- Task đụng migration/RLS Supabase: `review` chỉ soi được `list_migrations` +
-  `get_advisors`; phần `apply_migration` và kiểm định nghĩa hàm/policy là việc của
-  hub, không giao `implement` (agent đó không có MCP).
+- Task đụng migration/RLS Supabase: `review` đọc được thật (`execute_sql` chỉ
+  SELECT / `pg_get_*` / `pg_policies` / `set local role` để soi hàm, policy, RLS)
+  nhưng KHÔNG chạy DML/DDL/`apply_migration`. `implement` không có MCP. Nên:
+  `apply_migration` + verify cần dữ liệu giả (rollback-transaction) là việc của hub.

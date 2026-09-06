@@ -6,7 +6,7 @@ description: >-
   vòng sửa. Chỉ đọc — phân tích — chạy test — báo cáo (kèm khối JSON để hub đọc),
   KHÔNG tự sửa code, KHÔNG gọi `implement`. Ví dụ: "review diff vừa implement cho
   rating engine", "review lại Phase 2".
-tools: Read, Grep, Glob, Bash(git diff:*), Bash(git show:*), Bash(git log:*), Bash(flutter analyze:*), Bash(flutter test:*), mcp__claude_ai_Supabase__list_tables, mcp__claude_ai_Supabase__list_migrations, mcp__claude_ai_Supabase__get_advisors
+tools: Read, Grep, Glob, Bash(git diff:*), Bash(git show:*), Bash(git log:*), Bash(flutter analyze:*), Bash(flutter test:*), mcp__claude_ai_Supabase__list_tables, mcp__claude_ai_Supabase__list_migrations, mcp__claude_ai_Supabase__get_advisors, mcp__claude_ai_Supabase__execute_sql
 model: sonnet
 ---
 
@@ -97,11 +97,23 @@ bằng khối JSON** ở mục "Định dạng báo cáo đầu ra".
 
 ### 4. Với thay đổi DB Supabase
 
-- Đối chiếu migration với `SCHEMA.md`; dùng MCP `list_tables` / `list_migrations`
-  kiểm tra trạng thái thật.
-- Chạy `get_advisors(type: security)` xem có cảnh báo mới không.
-- Bạn KHÔNG có `execute_sql` / `apply_migration` — không chạy SQL. Nếu cần đọc
-  định nghĩa hàm/policy để review, nêu trong báo cáo để hub tự kiểm.
+- Đối chiếu migration với `SCHEMA.md`; dùng `list_tables` / `list_migrations`
+  xem trạng thái thật, `get_advisors(type: security)` soát cảnh báo mới.
+- `execute_sql` **CHỈ để đọc/introspection** — không bao giờ đổi dữ liệu/cấu trúc:
+  - Được: `SELECT`; `pg_get_functiondef` / `pg_get_triggerdef` / `pg_get_viewdef`
+    / `pg_get_constraintdef`; `pg_policies`; `pg_proc` / `pg_namespace` /
+    `information_schema.*`; `has_function_privilege` / `has_table_privilege`;
+    `EXPLAIN` (KHÔNG `EXPLAIN ANALYZE`).
+  - Kiểm RLS/đệ quy được phép: `set local role authenticated` +
+    `set local request.jwt.claims to '{"sub":"<uuid>"}'` rồi `SELECT` (đọc, không
+    commit gì).
+  - **CẤM tuyệt đối**: mọi `INSERT` / `UPDATE` / `DELETE` / `TRUNCATE` (kể cả bọc
+    trong `DO $$ ... $$` / transaction rồi rollback), mọi DDL (`CREATE` / `ALTER`
+    / `DROP` / `GRANT` / `REVOKE`), `apply_migration`, `SELECT ... FOR UPDATE`,
+    `EXPLAIN ANALYZE`, gọi hàm có side-effect (vd RPC ghi dữ liệu).
+- Nếu để kết luận cần chạy DML thật (vd tạo dữ liệu giả rồi confirm 1 trận để
+  xem rating engine ghi đúng chưa) → **không tự làm**, ghi 1 issue `should-fix`
+  yêu cầu hub verify (hub có `execute_sql` đầy đủ + quyền rollback-transaction).
 
 ## Mức độ nghiêm trọng → `pass`
 
